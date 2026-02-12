@@ -295,40 +295,113 @@ namespace coms.COMMON.ui
             if (hit.Type == DataGridViewHitTestType.ColumnHeader && hit.ColumnIndex >= 0)
             {
                 var hitCol = this.Columns[hit.ColumnIndex];
-                _insertionMarkIndex = hitCol.DisplayIndex;
                 Rectangle rect = this.GetCellDisplayRectangle(hit.ColumnIndex, -1, true);
 
+                if (rect.Width <= 0 || rect.Height <= 0)
+                {
+                    _insertionMarkIndex = -1;
+                    _insertionMarkX = -1;
+                    this.Invalidate();
+                    return;
+                }
+
+                // ✅ Store absolute X position (including scroll offset)
                 if (clientPoint.X > rect.Left + rect.Width / 2)
                 {
-                    _insertionMarkIndex++;
-                    _insertionMarkX = rect.Right;
+                    // Drop AFTER this column
+                    _insertionMarkIndex = hitCol.DisplayIndex + 1;
+                    _insertionMarkX = rect.Right + this.HorizontalScrollingOffset; // ✅ Add scroll offset
                 }
                 else
                 {
-                    _insertionMarkX = rect.Left;
+                    // Drop BEFORE this column
+                    _insertionMarkIndex = hitCol.DisplayIndex;
+                    _insertionMarkX = rect.Left + this.HorizontalScrollingOffset; // ✅ Add scroll offset
                 }
+
+                System.Diagnostics.Debug.WriteLine($"DragOver: Col={hitCol.Name}, DisplayIndex={hitCol.DisplayIndex}, InsertIndex={_insertionMarkIndex}, X={_insertionMarkX}, Rect={rect}");
+
+                this.Invalidate();
             }
             else
             {
                 _insertionMarkIndex = -1;
                 _insertionMarkX = -1;
+                this.Invalidate();
             }
+        }
 
-            this.Invalidate();
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            base.OnPaintBackground(e);
+
+            // Draw red line AFTER background but BEFORE cells
+            if (_insertionMarkIndex >= 0 && _insertionMarkX >= 0)
+            {
+                int y1 = 0;
+                int y2 = this.ColumnHeadersHeight;
+
+                using (var pen = new Pen(Color.Red, 3))
+                {
+                    e.Graphics.DrawLine(pen, _insertionMarkX, y1, _insertionMarkX, y2);
+                }
+
+                // Draw arrows
+                using (var brush = new SolidBrush(Color.Red))
+                {
+                    Point[] arrowTop = new Point[]
+                    {
+                new Point(_insertionMarkX, y1),
+                new Point(_insertionMarkX - 4, y1 + 6),
+                new Point(_insertionMarkX + 4, y1 + 6)
+                    };
+                    e.Graphics.FillPolygon(brush, arrowTop);
+
+                    Point[] arrowBottom = new Point[]
+                    {
+                new Point(_insertionMarkX, y2),
+                new Point(_insertionMarkX - 4, y2 - 6),
+                new Point(_insertionMarkX + 4, y2 - 6)
+                    };
+                    e.Graphics.FillPolygon(brush, arrowBottom);
+                }
+            }
         }
 
         private void GroupableDataGridView_Paint(object sender, PaintEventArgs e)
         {
-            if (_insertionMarkIndex < 0 || _insertionMarkX < 0)
-                return;
-
-            using (var pen = new Pen(Color.Red, 2))
+            // Draw the DarkGoldenrod insertion line for column drag/drop
+            if (_insertionMarkIndex >= 0 && _insertionMarkX >= 0)
             {
-                e.Graphics.DrawLine(pen,
-                    _insertionMarkX,
-                    2,
-                    _insertionMarkX,
-                    this.ColumnHeadersHeight - 2);
+                // ✅ Calculate proper Y coordinates for header area
+                int y1 = 0;
+                int y2 = this.ColumnHeadersHeight;
+
+                using (var pen = new Pen(Color.DarkGoldenrod, 2))  // ✅ Made thicker (was 2)
+                {
+                    e.Graphics.DrawLine(pen, _insertionMarkX, y1, _insertionMarkX, y2);
+                }
+
+                // ✅ Optional: Draw arrow at top for better visibility
+                using (var brush = new SolidBrush(Color.DarkGoldenrod))
+                {
+                    Point[] arrowTop = new Point[]
+                    {
+                new Point(_insertionMarkX, y1),
+                new Point(_insertionMarkX - 4, y1 + 6),
+                new Point(_insertionMarkX + 4, y1 + 6)
+                    };
+                    e.Graphics.FillPolygon(brush, arrowTop);
+
+                    // Arrow at bottom
+                    Point[] arrowBottom = new Point[]
+                    {
+                new Point(_insertionMarkX, y2),
+                new Point(_insertionMarkX - 4, y2 - 6),
+                new Point(_insertionMarkX + 4, y2 - 6)
+                    };
+                    e.Graphics.FillPolygon(brush, arrowBottom);
+                }
             }
         }
 
@@ -344,33 +417,48 @@ namespace coms.COMMON.ui
             if (string.IsNullOrEmpty(colName)) return;
             if (!this.Columns.Contains(colName)) return;
 
-            var col = this.Columns[colName];
-            col.Visible = true;
+            var draggedCol = this.Columns[colName];
+            draggedCol.Visible = true;
 
-            var visibleCols = this.Columns.Cast<DataGridViewColumn>()
-                .Where(c => c.Visible && c != col)
+            // ✅ Get all visible columns INCLUDING the dragged one
+            var allVisibleCols = this.Columns.Cast<DataGridViewColumn>()
+                .Where(c => c.Visible)
                 .OrderBy(c => c.DisplayIndex)
                 .ToList();
 
-            int targetDisplayIndex = visibleCols.Count; // 最終に列を戻す
-            if (_insertionMarkIndex >= 0 && _insertionMarkIndex < visibleCols.Count)
-            {
-                var targetCol = visibleCols[_insertionMarkIndex];
-                targetDisplayIndex = targetCol.DisplayIndex;
-            }
+            // ✅ Find current position of dragged column
+            int currentIndex = allVisibleCols.IndexOf(draggedCol);
 
+            // ✅ Calculate target position from red line
+            int targetIndex = _insertionMarkIndex;
+
+            // ✅ Validate target index
+            if (targetIndex < 0 || targetIndex > allVisibleCols.Count)
+                targetIndex = allVisibleCols.Count; // Move to end if invalid
+
+            // ✅ If dropping after current position, adjust for removal
+            if (targetIndex > currentIndex)
+                targetIndex--;
+
+            // ✅ Clamp to valid range
+            targetIndex = Math.Max(0, Math.Min(targetIndex, allVisibleCols.Count - 1));
+
+            // ✅ Set new DisplayIndex
             try
             {
-                col.DisplayIndex = targetDisplayIndex;
+                draggedCol.DisplayIndex = targetIndex;
             }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("GroupableDataGridView_DragDrop: " + ex.Message); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("GroupableDataGridView_DragDrop: " + ex.Message);
+            }
 
-            // 位置赤い線を消すの設定
+            // Clear red insertion line
             _insertionMarkIndex = -1;
             _insertionMarkX = -1;
             this.Invalidate();
 
-            // Cập nhật popup
+            // Update popup if exists
             var parentForm = this.FindForm();
             if (parentForm is coms.MyForm prForm && prForm._chooserPopup != null)
                 prForm._chooserPopup.RemoveColumnByName(colName);
@@ -2275,6 +2363,55 @@ namespace coms.COMMON.ui
                     TextFormatFlags.VerticalCenter |
                     TextFormatFlags.HorizontalCenter
                 );
+            }
+
+            // ✅✅✅ DRAW DarkGoldenrod INSERTION LINE LAST ✅✅✅
+            if (_insertionMarkIndex >= 0 && _insertionMarkX >= 0)
+            {
+                // ✅ Get actual header bounds
+                Rectangle headerBounds = new Rectangle(
+                    0,
+                    0,
+                    this.Width,
+                    this.ColumnHeadersHeight
+                );
+
+                // ✅ Adjust for scrolling
+                int adjustedX = _insertionMarkX - this.HorizontalScrollingOffset;
+
+                // ✅ Only draw if visible
+                if (adjustedX >= 0 && adjustedX <= this.Width)
+                {
+                    int y1 = headerBounds.Top;
+                    int y2 = headerBounds.Bottom - 1;
+
+                    // ✅ Draw thick red line
+                    using (var pen = new Pen(Color.DarkGoldenrod, 2))
+                    {
+                        e.Graphics.DrawLine(pen, adjustedX, y1, adjustedX, y2);
+                    }
+
+                    // ✅ Draw top arrow
+                    using (var brush = new SolidBrush(Color.DarkGoldenrod))
+                    {
+                        Point[] arrowTop = new Point[]
+                        {
+                    new Point(adjustedX, y1),
+                    new Point(adjustedX - 5, y1 + 8),
+                    new Point(adjustedX + 5, y1 + 8)
+                        };
+                        e.Graphics.FillPolygon(brush, arrowTop);
+
+                        // ✅ Draw bottom arrow
+                        Point[] arrowBottom = new Point[]
+                        {
+                    new Point(adjustedX, y2),
+                    new Point(adjustedX - 5, y2 - 8),
+                    new Point(adjustedX + 5, y2 - 8)
+                        };
+                        e.Graphics.FillPolygon(brush, arrowBottom);
+                    }
+                }
             }
         }
         /// <summary>
