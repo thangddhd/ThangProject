@@ -125,6 +125,7 @@ namespace coms.COMMON.ui
         // disable filter all columns will ignore all sort event if not in DisabledFilterAll
         public bool DisabledFilterAll { get; set; } = false;
         private bool _suppressSortOnce = false;
+        private bool _isResizingColumn = false;
         public HashSet<string> IgnoreAutoFormatColumns { get; set; } = new HashSet<string>();
         public DataGridViewEx()
         {
@@ -2282,6 +2283,18 @@ namespace coms.COMMON.ui
         /// <param name="e"></param>
         protected override void OnMouseDown(MouseEventArgs e)
         {
+            // ✅ CHECK IF MOUSE IS ON COLUMN RESIZE GRIP
+            if (e.Button == MouseButtons.Left && IsMouseOnColumnResizeGrip(e.Location))
+            {
+                _isResizingColumn = true;  // ✅ Set flag
+                _draggingStarted = false;  // ✅ Prevent drag/drop
+                base.OnMouseDown(e);
+                return;
+            }
+
+            // Reset resize flag
+            _isResizingColumn = false;
+
             // Drag start detect
             if (e.Button == MouseButtons.Left)
             {
@@ -2325,15 +2338,12 @@ namespace coms.COMMON.ui
 
                     if (!filterEnabled && iconArea.Contains(e.Location))
                     {
-                        // Filter disabled
                         return;
                     }
 
                     if (iconArea.Contains(e.Location))
                     {
-                        // ✅ prevent sort
                         _suppressSortOnce = true;
-
                         base.OnMouseDown(e);
                         return;
                     }
@@ -2348,24 +2358,79 @@ namespace coms.COMMON.ui
             base.OnMouseDown(e);
         }
         /// <summary>
+        /// Detects if the mouse is positioned over a column resize grip (divider between columns).
+        /// </summary>
+        private bool IsMouseOnColumnResizeGrip(Point mouseLocation)
+        {
+            var hit = this.HitTest(mouseLocation.X, mouseLocation.Y);
+
+            if (hit.Type != DataGridViewHitTestType.ColumnHeader || hit.ColumnIndex < 0)
+                return false;
+
+            var col = this.Columns[hit.ColumnIndex];
+
+            // Can't resize if column resizing is disabled
+            if (!this.AllowUserToResizeColumns || col.Resizable == DataGridViewTriState.False)
+                return false;
+
+            var headerRect = this.GetCellDisplayRectangle(hit.ColumnIndex, -1, true);
+
+            if (headerRect == Rectangle.Empty)
+                return false;
+
+            // Resize grip is typically 4-6 pixels wide
+            int gripWidth = 4;
+
+            // Check RIGHT edge of current column
+            bool nearRightEdge = (mouseLocation.X >= headerRect.Right - gripWidth &&
+                                  mouseLocation.X <= headerRect.Right + gripWidth);
+
+            // Check LEFT edge of current column (only if not first column)
+            bool nearLeftEdge = false;
+            if (hit.ColumnIndex > 0)
+            {
+                nearLeftEdge = (mouseLocation.X >= headerRect.Left - gripWidth &&
+                                mouseLocation.X <= headerRect.Left + gripWidth);
+            }
+
+            return nearRightEdge || nearLeftEdge;
+        }
+        /// <summary>
         /// drag and drop column
         /// </summary>
         /// <param name="e"></param>
         protected override void OnMouseMove(MouseEventArgs e)
         {
+            // ✅ Show resize cursor when hovering over column divider
+            if (IsMouseOnColumnResizeGrip(e.Location))
+            {
+                this.Cursor = Cursors.VSplit;
+            }
+            else if (this.Cursor == Cursors.VSplit)
+            {
+                this.Cursor = Cursors.Default;
+            }
+
             base.OnMouseMove(e);
+
+            // ✅ SKIP drag/drop logic if currently resizing
+            if (_isResizingColumn)
+                return;
 
             if (e.Button == MouseButtons.Left && !_draggingStarted)
             {
                 var dx = Math.Abs(e.X - _dragStartPoint.X);
                 var dy = Math.Abs(e.Y - _dragStartPoint.Y);
                 var dragThreshold = SystemInformation.DragSize;
+
                 if (dx >= dragThreshold.Width || dy >= dragThreshold.Height)
                 {
-                    var hit = this.HitTest(e.X, e.Y);
-                    if (hit.Type == DataGridViewHitTestType.ColumnHeader && hit.ColumnIndex >= 0)
+                    // ✅ Check if drag STARTED on a column header (not just current position)
+                    var startHit = this.HitTest(_dragStartPoint.X, _dragStartPoint.Y);
+
+                    if (startHit.Type == DataGridViewHitTestType.ColumnHeader && startHit.ColumnIndex >= 0)
                     {
-                        var col = this.Columns[hit.ColumnIndex];
+                        var col = this.Columns[startHit.ColumnIndex];
                         if (col != null)
                         {
                             var data = new System.Windows.Forms.DataObject();
@@ -2374,12 +2439,35 @@ namespace coms.COMMON.ui
                             {
                                 data.SetData(typeof(DataGridViewColumn), col);
                             }
-                            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("OnMouseMove: " + ex.Message); }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine("OnMouseMove: " + ex.Message);
+                            }
 
                             _draggingStarted = true;
                             this.DoDragDrop(data, DragDropEffects.Move);
                         }
                     }
+                }
+            }
+
+            // ✅ Existing hover logic for column headers (using HitTest, not e.RowIndex)
+            var hit = this.HitTest(e.X, e.Y);
+
+            if (hit.RowIndex == -1) // header row
+            {
+                if (_hoverColumnIndex != hit.ColumnIndex)
+                {
+                    _hoverColumnIndex = hit.ColumnIndex;
+                    this.Invalidate();
+                }
+            }
+            else
+            {
+                if (_hoverColumnIndex != -1)
+                {
+                    _hoverColumnIndex = -1;
+                    this.Invalidate();
                 }
             }
         }
@@ -2390,7 +2478,9 @@ namespace coms.COMMON.ui
         protected override void OnMouseUp(MouseEventArgs e)
         {
             base.OnMouseUp(e);
+
             _draggingStarted = false;
+            _isResizingColumn = false;  // ✅ Reset resize flag
         }
 
         private void DrawFilterIcon(

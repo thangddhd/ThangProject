@@ -47,7 +47,8 @@ namespace GridviewEx
             this.dataGridViewEx1.AllowDrop = true;
             this.dataGridViewEx1.AllowUserToAddRows = false;
             this.dataGridViewEx1.AllowUserToOrderColumns = true;
-            this.dataGridViewEx1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dataGridViewEx1.ColumnHeadersHeight = 30;
+            this.dataGridViewEx1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             this.dataGridViewEx1.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.Column1,
             this.Column2,
@@ -73,7 +74,7 @@ namespace GridviewEx
             this.dataGridViewEx1.RowHeadersWidth = 62;
             this.dataGridViewEx1.RowTemplate.Height = 27;
             this.dataGridViewEx1.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dataGridViewEx1.Size = new System.Drawing.Size(1096, 609);
+            this.dataGridViewEx1.Size = new System.Drawing.Size(2206, 848);
             this.dataGridViewEx1.SortStringChangedInvokeBeforeDatasourceUpdate = true;
             gridViewStyle1.AlternatingRowBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(245)))), ((int)(((byte)(245)))));
             gridViewStyle1.CellBorderColor = System.Drawing.Color.LightGray;
@@ -90,6 +91,7 @@ namespace GridviewEx
             // 
             // Column1
             // 
+            this.Column1.DataPropertyName = "Column1";
             this.Column1.HeaderText = "Column1";
             this.Column1.MinimumWidth = 24;
             this.Column1.Name = "Column1";
@@ -98,6 +100,7 @@ namespace GridviewEx
             // 
             // Column2
             // 
+            this.Column2.DataPropertyName = "Column2";
             this.Column2.HeaderText = "Column2";
             this.Column2.MinimumWidth = 24;
             this.Column2.Name = "Column2";
@@ -106,6 +109,7 @@ namespace GridviewEx
             // 
             // Column3
             // 
+            this.Column3.DataPropertyName = "Column3";
             this.Column3.HeaderText = "Column3";
             this.Column3.MinimumWidth = 24;
             this.Column3.Name = "Column3";
@@ -114,6 +118,7 @@ namespace GridviewEx
             // 
             // Column4
             // 
+            this.Column4.DataPropertyName = "Column4";
             this.Column4.HeaderText = "Column4";
             this.Column4.MinimumWidth = 24;
             this.Column4.Name = "Column4";
@@ -122,6 +127,7 @@ namespace GridviewEx
             // 
             // Column5
             // 
+            this.Column5.DataPropertyName = "Column5";
             this.Column5.HeaderText = "Column5";
             this.Column5.MinimumWidth = 24;
             this.Column5.Name = "Column5";
@@ -130,6 +136,7 @@ namespace GridviewEx
             // 
             // Column6
             // 
+            this.Column6.DataPropertyName = "Column6";
             this.Column6.HeaderText = "Column6";
             this.Column6.MinimumWidth = 24;
             this.Column6.Name = "Column6";
@@ -138,6 +145,7 @@ namespace GridviewEx
             // 
             // Column7
             // 
+            this.Column7.DataPropertyName = "Column7";
             this.Column7.HeaderText = "Column7";
             this.Column7.MinimumWidth = 24;
             this.Column7.Name = "Column7";
@@ -148,10 +156,11 @@ namespace GridviewEx
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(10F, 18F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1583, 1018);
+            this.ClientSize = new System.Drawing.Size(2261, 1018);
             this.Controls.Add(this.dataGridViewEx1);
             this.Name = "Form1";
             this.Text = "Form1";
+            this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewEx1)).EndInit();
             this.ResumeLayout(false);
 
