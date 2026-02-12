@@ -1,0 +1,164 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{C0C1EF98-2BCB-45EB-92F4-60382E6FF51A}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>GridviewEx</RootNamespace>
+    <AssemblyName>GridviewEx</AssemblyName>
+    <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="AdvancedDataGridView, Version=1.2.30115.18, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>dll\AdvancedDataGridView.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>dll\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data.Linq" />
+    <Reference Include="System.Linq.Dynamic.Core, Version=1.6.9.0, Culture=neutral, PublicKeyToken=0f07ec44de6ac832, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>dll\System.Linq.Dynamic.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ColumnChooserPopup.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ColumnChooserPopup.Designer.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewButtonCellEx.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewCellExHelper.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewComboBoxCellEx.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewDateTimePickerCell.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewDateTimePickerColumn.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewEx.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewEx.Designer.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewExHelper.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewExSub.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewNumericColumn.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewNumericTextBoxCell.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewTextBoxCellEx.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewTimeCell.cs" />
+    <Compile Include="DataGridViewEx\DataGridViewTimeColumn.cs" />
+    <Compile Include="DataGridViewEx\DateTimePickerEditingControl.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="DataGridViewEx\ISpannedCell.cs" />
+    <Compile Include="DataGridViewEx\NumericEditingControl.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="DataGridViewEx\TimeEditingControl.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="DateTimePicker2.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Form1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Form1.Designer.cs">
+      <DependentUpon>Form1.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MyForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="Form1.resx">
+      <DependentUpon>Form1.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MyForm.resx" />
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="dll\AdvancedDataGridView.dll" />
+    <Content Include="dll\Newtonsoft.Json.dll" />
+    <Content Include="dll\System.Linq.Dynamic.Core.dll" />
+    <Content Include="resource\arrow_down_blue.png" />
+    <Content Include="resource\arrow_up_blue.png" />
+    <Content Include="resource\calendar.gif" />
+    <Content Include="resource\delete2.png" />
+    <Content Include="resource\delete2_16.png" />
+    <Content Include="resource\email.jpg" />
+    <Content Include="resource\error-icon.ico" />
+    <Content Include="resource\error.ico" />
+    <Content Include="resource\folder_blue.png" />
+    <Content Include="resource\folder_gr.png" />
+    <Content Include="resource\folder_gray.ico" />
+    <Content Include="resource\folder_red.png" />
+    <Content Include="resource\help.gif" />
+    <Content Include="resource\help.png" />
+    <Content Include="resource\help1.gif" />
+    <Content Include="resource\icons8-filter-16.png" />
+    <Content Include="resource\log1.gif" />
+    <Content Include="resource\mail_question.jpg" />
+    <Content Include="resource\nomail.jpg" />
+    <Content Include="resource\nomailimage.jpg" />
+    <Content Include="resource\print2.jpg" />
+    <Content Include="resource\searching_progress.gif" />
+    <Content Include="resource\task-report-regular.ico" />
+    <Content Include="resource\ya_s.gif" />
+    <Content Include="resource\ya_s_r.gif" />
+    <Content Include="resource\ya_w.gif" />
+    <Content Include="resource\ya_w_r.gif" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

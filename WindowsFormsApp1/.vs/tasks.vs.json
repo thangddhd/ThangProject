@@ -1,0 +1,10 @@
+{
+  "version": "0.2.1",
+  "tasks": [
+    {
+      "taskLabel": "タスク-WindowsFormsApp1",
+      "appliesTo": "WindowsFormsApp1/",
+      "type": "launch"
+    }
+  ]
+}
