@@ -1,7 +1,14 @@
-C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.csproj.AssemblyReference.cache
+C:\ThangProject\GridviewEx\bin\Debug\GridviewEx.exe.config
+C:\ThangProject\GridviewEx\bin\Debug\GridviewEx.exe
+C:\ThangProject\GridviewEx\bin\Debug\GridviewEx.pdb
+C:\ThangProject\GridviewEx\bin\Debug\AdvancedDataGridView.dll
+C:\ThangProject\GridviewEx\bin\Debug\Newtonsoft.Json.dll
+C:\ThangProject\GridviewEx\bin\Debug\System.Linq.Dynamic.Core.dll
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.Form1.resources
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.MyForm.resources
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.Properties.Resources.resources
-C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.S100200010.resources
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.csproj.GenerateResource.cache
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.csproj.CoreCompileInputs.cache
+C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.csproj.CopyComplete
+C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.exe
+C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.pdb
