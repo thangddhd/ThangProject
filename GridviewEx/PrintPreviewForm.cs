@@ -28,6 +28,8 @@ namespace coms.COMMON.ui
 
         // データソース
         private List<PrintCol> cols;
+        // 出力の場合ボタンも出す
+        private List<PrintCol> exportCols;
         private List<object> rows;
 
         // プレビュー中行
@@ -202,6 +204,7 @@ namespace coms.COMMON.ui
         private void BuildPrintData()
         {
             cols = new List<PrintCol>();
+            exportCols = new List<PrintCol>();
 
             // 表示中のボタン列以外
             var visibleColumns = Grid.Columns
@@ -212,14 +215,17 @@ namespace coms.COMMON.ui
 
             foreach (var c in visibleColumns)
             {
-                cols.Add(new PrintCol
+                var prCol = new PrintCol
                 {
                     Header = c.HeaderText,
                     Width = c.Width,
                     Property = c.DataPropertyName,
-                    ColumnIndex = c.Index,   // Index vẫn dùng để lấy cell
+                    ColumnIndex = c.Index,   // Index for get cell
                     ColumnName = c.Name
-                });
+                };
+                exportCols.Add(prCol);
+                if (!(c is DataGridViewButtonColumn))
+                    cols.Add(prCol);
             }
 
             rows = new List<object>();

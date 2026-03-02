@@ -31,6 +31,7 @@ namespace GridviewEx
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             coms.COMMON.ui.GridViewStyle gridViewStyle1 = new coms.COMMON.ui.GridViewStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             this.dataGridViewEx1 = new coms.COMMON.ui.DataGridViewEx();
             this.Column1 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Column2 = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -65,7 +66,7 @@ namespace GridviewEx
             this.dataGridViewEx1.FocusedRowHandle = -1;
             this.dataGridViewEx1.IgnoreAutoFormatColumns = ((System.Collections.Generic.HashSet<string>)(resources.GetObject("dataGridViewEx1.IgnoreAutoFormatColumns")));
             this.dataGridViewEx1.KeepFilterAndSort = true;
-            this.dataGridViewEx1.Location = new System.Drawing.Point(30, 25);
+            this.dataGridViewEx1.Location = new System.Drawing.Point(122, 43);
             this.dataGridViewEx1.MaxFilterButtonImageHeight = 23;
             this.dataGridViewEx1.Name = "dataGridViewEx1";
             this.dataGridViewEx1.RightToLeft = System.Windows.Forms.RightToLeft.No;
@@ -73,7 +74,7 @@ namespace GridviewEx
             this.dataGridViewEx1.RowHeadersWidth = 62;
             this.dataGridViewEx1.RowTemplate.Height = 27;
             this.dataGridViewEx1.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dataGridViewEx1.Size = new System.Drawing.Size(2206, 848);
+            this.dataGridViewEx1.Size = new System.Drawing.Size(1282, 848);
             this.dataGridViewEx1.SortStringChangedInvokeBeforeDatasourceUpdate = true;
             gridViewStyle1.AlternatingRowBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(245)))), ((int)(((byte)(245)))));
             gridViewStyle1.CellBorderColor = System.Drawing.Color.LightGray;
@@ -91,6 +92,9 @@ namespace GridviewEx
             // Column1
             // 
             this.Column1.DataPropertyName = "Column1";
+            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleRight;
+            dataGridViewCellStyle1.Format = "N0";
+            this.Column1.DefaultCellStyle = dataGridViewCellStyle1;
             this.Column1.HeaderText = "Column1";
             this.Column1.MinimumWidth = 24;
             this.Column1.Name = "Column1";
@@ -155,7 +159,7 @@ namespace GridviewEx
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(10F, 18F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(2261, 1018);
+            this.ClientSize = new System.Drawing.Size(1923, 1018);
             this.Controls.Add(this.dataGridViewEx1);
             this.Name = "Form1";
             this.Text = "Form1";
