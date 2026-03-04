@@ -25,7 +25,14 @@ namespace GridviewEx
             lstSrc.Add(DataTest.GetNew(3));
             lstSrc.Add(DataTest.GetNew(4));
             lstSrc.Add(DataTest.GetNew(5));
+            lstSrc.Add(DataTest.GetNew(13));
+            lstSrc.Add(DataTest.GetNew(17));
+            lstSrc.Add(DataTest.GetNew(25));
+            lstSrc.Add(DataTest.GetNew(35));
+            lstSrc.Add(DataTest.GetNew(46));
+            lstSrc.Add(DataTest.GetNew(57));
             dataGridViewEx1.DataSource = lstSrc;
+            dataGridViewEx1.SortAsNumberColumns.Add(Column2.Name);
         }
     }
 
@@ -43,7 +50,12 @@ namespace GridviewEx
         {
             DataTest ret = new DataTest();
             ret.Column1 = "Column1_" + index.ToString();
-            ret.Column2 = "Column2_" + index.ToString();
+            var text = "Column2_" + index.ToString();
+            if (index < 30)
+            {
+                text = (index + 7).ToString();
+            }
+            ret.Column2 = text;
             ret.Column3 = "Column3_" + index.ToString();
             ret.Column4 = "Column4_" + index.ToString();
             ret.Column5 = "Column5_" + index.ToString();

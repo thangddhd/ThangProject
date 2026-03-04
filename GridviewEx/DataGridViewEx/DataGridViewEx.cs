@@ -131,6 +131,7 @@ namespace coms.COMMON.ui
         private bool _suppressSortOnce = false;
         private bool _isResizingColumn = false;
         public HashSet<string> IgnoreAutoFormatColumns { get; set; } = new HashSet<string>();
+        public HashSet<string> SortAsNumberColumns { get; set; } = new HashSet<string>();
         public DataGridViewEx()
         {
             this.DoubleBuffered = true;
@@ -2336,8 +2337,17 @@ namespace coms.COMMON.ui
             _lastSortedColumnName = propName;
             _lastSortDirection = newDirection;
 
+            // Keep for compatibility with existing code paths
             _lastSortString = $"[{propName}] {(newDirection == ListSortDirection.Ascending ? "ASC" : "DESC")}";
 
+            // ✅ NEW: custom numeric sort for selected columns
+            if (IsSortAsNumberColumn(col))
+            {
+                ApplyListSortAsNumber(propName, newDirection);
+                return;
+            }
+
+            // default behavior
             ApplyListFilterAndSort();
         }
         /// <summary>
@@ -3254,6 +3264,129 @@ namespace coms.COMMON.ui
 
             UpdateFilteredColumnsFromFilterString(_lastFilterString);
             ReapplyCurrentFilterAndSort();
+        }
+
+        private void ApplyListSortAsNumber(string propName, ListSortDirection direction)
+        {
+            if (_originalListData == null) return;
+
+            try
+            {
+                var query = _originalListData.AsQueryable();
+
+                // Apply filter first (same as ApplyListFilterAndSort)
+                if (!string.IsNullOrWhiteSpace(_lastFilterString))
+                {
+                    string linqFilter = ConvertFilterToLinq(_lastFilterString);
+                    if (!string.IsNullOrWhiteSpace(linqFilter))
+                        query = query.Where(linqFilter);
+                }
+
+                // materialize so we can do safe numeric parsing and special ordering
+                var list = query.ToList();
+
+                // split numeric vs non-numeric
+                var numeric = new List<(object item, decimal num)>();
+                var nonNumeric = new List<object>();
+
+                foreach (var item in list)
+                {
+                    object val = null;
+
+                    // support DataRow/DataRowView too
+                    if (item is DataRow dr)
+                        val = dr.Table.Columns.Contains(propName) ? dr[propName] : null;
+                    else if (item is DataRowView drv)
+                        val = drv.DataView.Table.Columns.Contains(propName) ? drv[propName] : null;
+                    else
+                    {
+                        var p = item.GetType().GetProperty(propName);
+                        if (p != null) val = p.GetValue(item);
+                    }
+
+                    if (TryGetDecimal(val, out var num))
+                        numeric.Add((item, num));
+                    else
+                        nonNumeric.Add(item);
+                }
+
+                // string key for non-numeric ordering (null/DBNull => "")
+                Func<object, string> nonNumericKey = (item) =>
+                {
+                    object val = null;
+
+                    if (item is DataRow dr)
+                        val = dr.Table.Columns.Contains(propName) ? dr[propName] : null;
+                    else if (item is DataRowView drv)
+                        val = drv.DataView.Table.Columns.Contains(propName) ? drv[propName] : null;
+                    else
+                    {
+                        var p = item.GetType().GetProperty(propName);
+                        if (p != null) val = p.GetValue(item);
+                    }
+
+                    if (val == null || val == DBNull.Value) return "";
+                    return val.ToString();
+                };
+
+                IEnumerable<object> sortedNumeric = (direction == ListSortDirection.Ascending)
+                    ? numeric.OrderBy(x => x.num).Select(x => x.item)
+                    : numeric.OrderByDescending(x => x.num).Select(x => x.item);
+
+                IEnumerable<object> sortedNonNumeric = (direction == ListSortDirection.Ascending)
+                    ? nonNumeric.OrderBy(nonNumericKey, StringComparer.CurrentCultureIgnoreCase)
+                    : nonNumeric.OrderByDescending(nonNumericKey, StringComparer.CurrentCultureIgnoreCase);
+
+                // ✅ Required behavior:
+                // Asc: numeric first, non-numeric bottom
+                // Desc: non-numeric top, numeric bottom
+                List<object> result = (direction == ListSortDirection.Ascending)
+                    ? sortedNumeric.Concat(sortedNonNumeric).ToList()
+                    : sortedNonNumeric.Concat(sortedNumeric).ToList();
+
+                if (this.DataSource is BindingSource bs)
+                    bs.DataSource = result;
+                else
+                    this.DataSource = new BindingSource { DataSource = result };
+
+                this.UpdateClearFilterButtonVisibility();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("ApplyListSortAsNumber failed: " + ex.Message);
+            }
+        }
+
+        private bool IsSortAsNumberColumn(DataGridViewColumn col)
+        {
+            if (col == null) return false;
+
+            // allow specifying either Column.Name OR DataPropertyName (more flexible for parent form)
+            var name = col.Name ?? "";
+            var dp = col.DataPropertyName ?? "";
+
+            return (SortAsNumberColumns != null) &&
+                   (SortAsNumberColumns.Contains(name) || (!string.IsNullOrEmpty(dp) && SortAsNumberColumns.Contains(dp)));
+        }
+
+        private static bool TryGetDecimal(object value, out decimal number)
+        {
+            number = 0m;
+            if (value == null) return false;
+
+            if (value is decimal dec) { number = dec; return true; }
+            if (value is int i) { number = i; return true; }
+            if (value is long l) { number = l; return true; }
+            if (value is float f) { number = (decimal)f; return true; }
+            if (value is double d) { number = (decimal)d; return true; }
+
+            var s = value.ToString()?.Trim();
+            if (string.IsNullOrEmpty(s)) return false;
+
+            // simple numeric parse; you can extend with culture rules if needed
+            return decimal.TryParse(s, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out number)
+                || decimal.TryParse(s, out number);
         }
     }
 }
