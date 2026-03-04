@@ -33,7 +33,7 @@ namespace GridviewEx
             coms.COMMON.ui.GridViewStyle gridViewStyle1 = new coms.COMMON.ui.GridViewStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             this.dataGridViewEx1 = new coms.COMMON.ui.DataGridViewEx();
-            this.Column1 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Column1 = new System.Windows.Forms.DataGridViewButtonColumn();
             this.Column2 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Column3 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Column4 = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -66,7 +66,8 @@ namespace GridviewEx
             this.dataGridViewEx1.FocusedRowHandle = -1;
             this.dataGridViewEx1.IgnoreAutoFormatColumns = ((System.Collections.Generic.HashSet<string>)(resources.GetObject("dataGridViewEx1.IgnoreAutoFormatColumns")));
             this.dataGridViewEx1.KeepFilterAndSort = true;
-            this.dataGridViewEx1.Location = new System.Drawing.Point(122, 43);
+            this.dataGridViewEx1.Location = new System.Drawing.Point(73, 29);
+            this.dataGridViewEx1.Margin = new System.Windows.Forms.Padding(2);
             this.dataGridViewEx1.MaxFilterButtonImageHeight = 23;
             this.dataGridViewEx1.Name = "dataGridViewEx1";
             this.dataGridViewEx1.RightToLeft = System.Windows.Forms.RightToLeft.No;
@@ -74,7 +75,7 @@ namespace GridviewEx
             this.dataGridViewEx1.RowHeadersWidth = 62;
             this.dataGridViewEx1.RowTemplate.Height = 27;
             this.dataGridViewEx1.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dataGridViewEx1.Size = new System.Drawing.Size(1282, 848);
+            this.dataGridViewEx1.Size = new System.Drawing.Size(769, 565);
             this.dataGridViewEx1.SortStringChangedInvokeBeforeDatasourceUpdate = true;
             gridViewStyle1.AlternatingRowBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(245)))), ((int)(((byte)(245)))));
             gridViewStyle1.CellBorderColor = System.Drawing.Color.LightGray;
@@ -95,9 +96,11 @@ namespace GridviewEx
             dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleRight;
             dataGridViewCellStyle1.Format = "N0";
             this.Column1.DefaultCellStyle = dataGridViewCellStyle1;
+            this.Column1.FlatStyle = System.Windows.Forms.FlatStyle.System;
             this.Column1.HeaderText = "Column1";
             this.Column1.MinimumWidth = 24;
             this.Column1.Name = "Column1";
+            this.Column1.Resizable = System.Windows.Forms.DataGridViewTriState.True;
             this.Column1.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Programmatic;
             this.Column1.Width = 150;
             // 
@@ -157,10 +160,11 @@ namespace GridviewEx
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(10F, 18F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1923, 1018);
+            this.ClientSize = new System.Drawing.Size(1154, 679);
             this.Controls.Add(this.dataGridViewEx1);
+            this.Margin = new System.Windows.Forms.Padding(2);
             this.Name = "Form1";
             this.Text = "Form1";
             this.Load += new System.EventHandler(this.Form1_Load);
@@ -172,7 +176,7 @@ namespace GridviewEx
         #endregion
 
         private coms.COMMON.ui.DataGridViewEx dataGridViewEx1;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Column1;
+        private System.Windows.Forms.DataGridViewButtonColumn Column1;
         private System.Windows.Forms.DataGridViewTextBoxColumn Column2;
         private System.Windows.Forms.DataGridViewTextBoxColumn Column3;
         private System.Windows.Forms.DataGridViewTextBoxColumn Column4;

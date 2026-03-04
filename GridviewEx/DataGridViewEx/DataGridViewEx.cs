@@ -14,6 +14,7 @@ using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 using System.Drawing.Imaging;
 using Zuby.ADGV;
+using coms.COMMON.Utility;
 
 namespace coms.COMMON.ui
 {
@@ -79,7 +80,10 @@ namespace coms.COMMON.ui
         private static readonly CustomButtonEditorTemplate TemplateUpdloadActive = new CustomButtonEditorTemplate(IconUpload_ActiveNew);
         private static readonly CustomButtonEditorTemplate TemplateUpdloadDisabled = new CustomButtonEditorTemplate(IconUpload_Disabled);
         private static readonly CustomButtonEditorTemplate TemplateUpdloadDefault = new CustomButtonEditorTemplate(IconUpload_Active);
-
+        private static readonly Color _buttonBgColor = Color.FromArgb(237, 237, 237);
+        private static readonly Color _buttonHoverBgColor = Color.FromArgb(255, 235, 140);
+        private static readonly Color _buttonDisabledBgColor = Color.LightGray;
+        private static readonly Color _buttonBorderColor = Color.FromArgb(180, 180, 180);
         //--------------------------
 
         private string _groupColumn = null;
@@ -164,7 +168,7 @@ namespace coms.COMMON.ui
             _clearFilterButton.Font = new Font("MS UI Gothic", 9f, FontStyle.Regular);
             _clearFilterButton.Visible = false;
             _clearFilterButton.AutoSize = true;
-            _clearFilterButton.BackColor = Color.FromArgb(240, 240, 240);
+            _clearFilterButton.BackColor = _buttonBgColor; //Color.FromArgb(240, 240, 240);
             _clearFilterButton.FlatStyle = FlatStyle.Flat;
             _clearFilterButton.FlatAppearance.BorderColor = Color.Gray;
             _clearFilterButton.Cursor = Cursors.Hand;
@@ -1014,7 +1018,14 @@ namespace coms.COMMON.ui
 
         private void GroupableDataGridView_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
+            //------------------------------
+            // ヘッダ
+            //------------------------------
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return; // skip row header or column header
+
+            //------------------------------
+            // ヘッダ以外
+            //------------------------------
             var column = this.Columns[e.ColumnIndex];
             var row = this.Rows[e.RowIndex];
             bool isGroupRow = false;
@@ -1116,7 +1127,7 @@ namespace coms.COMMON.ui
             // --- Draw top cell for merged cells ---
             if (e.RowIndex == top)
             {
-                this.DrawTopCell(e, column, back, fore);
+                this.DrawTopCell(e, column, back, fore, top, bottom);
             }
 
             e.Handled = true;
@@ -1160,7 +1171,7 @@ namespace coms.COMMON.ui
             );
         }
 
-        private void DrawTopCell(DataGridViewCellPaintingEventArgs e, DataGridViewColumn column, Color back, Color fore)
+        private void DrawTopCell(DataGridViewCellPaintingEventArgs e, DataGridViewColumn column, Color back, Color fore, int top, int bottom)
         {
             if (column is DataGridViewButtonColumn)
             {
@@ -1647,6 +1658,7 @@ namespace coms.COMMON.ui
                 var args = new ButtonIconNeededEventArgs(column, this.Rows[e.RowIndex], this.Rows[e.RowIndex].DataBoundItem);
                 args.Icon = icon; // デフォルトicon一応設定
                 args.ForeColor = fore; //default text color
+                args.BackColor = _buttonBgColor; //default background color
                 ButtonIconNeeded.Invoke(this, args);
                 // Invokeしたら新Iconが来る
                 icon = args.Icon;
@@ -1671,20 +1683,43 @@ namespace coms.COMMON.ui
 
         private void DrawButtonColumnWithBackColor(DataGridViewCellPaintingEventArgs e, Image icon, string btnText, Color backColor, bool enabled, Color fore)
         {
+            // === Button      ===
             Rectangle rect = e.CellBounds;
-            Color fillColor = backColor != Color.Empty
-                                ? backColor
-                                : (enabled ? Color.White : Color.LightGray);
+            rect.Inflate(-4, -2);
 
-            using (var brush = new SolidBrush(fillColor))
-            {
-                e.Graphics.FillRectangle(brush, rect);
-            }
+            bool isHovered = (e.RowIndex == _hoverRowIndex && e.ColumnIndex == _hoverColumnIndex);
+            Color colorTop = isHovered ? Color.FromArgb(255, 250, 211) : Color.FromArgb(245, 245, 245);
+            Color colorBottom = isHovered ? _buttonHoverBgColor : _buttonBgColor;
 
-            // Border
-            using (var pen = new Pen(Color.Gray))
+            using (GraphicsPath path = GetRoundedRect(rect, 6))
             {
-                e.Graphics.DrawRectangle(pen, rect.X, rect.Y, rect.Width - 1, rect.Height - 1);
+                if (enabled)
+                {
+                    using (LinearGradientBrush lgb = new LinearGradientBrush(rect, colorTop, colorBottom, LinearGradientMode.Vertical))
+                    {
+                        e.Graphics.FillPath(lgb, path);
+                    }
+
+                    Color borderColor = isHovered ? Color.FromArgb(180, 150, 50) : _buttonBorderColor;
+                    using (Pen btnPen = new Pen(borderColor, 1))
+                    {
+                        e.Graphics.DrawPath(btnPen, path);
+                    }
+                }
+                else
+                {
+                    // background
+                    using (Brush brush = new SolidBrush(_buttonDisabledBgColor))
+                    {
+                        e.Graphics.FillPath(brush, path);
+                    }
+
+                    // button Border
+                    using (Pen btnPen = new Pen(_buttonDisabledBgColor, 1))
+                    {
+                        e.Graphics.DrawPath(btnPen, path);
+                    }
+                }
             }
 
             // === ICON ===
@@ -1819,6 +1854,7 @@ namespace coms.COMMON.ui
         private void DrawTextBoxColumn(DataGridViewCellPaintingEventArgs e, DataGridViewColumn column, Color fore)
         {
             bool isNumeric = false;
+            bool isMinNumber = false;
             bool isDate = false;
             string format = string.Empty;
             Type underlyingType = null;
@@ -1829,8 +1865,7 @@ namespace coms.COMMON.ui
                 underlyingType = Nullable.GetUnderlyingType(valType) ?? valType;
                 format = column.DefaultCellStyle.Format;
 
-                isNumeric = new[] { typeof(int), typeof(long), typeof(float), typeof(double), typeof(decimal) }
-                    .Contains(underlyingType);
+                isNumeric = Number.IsNumeric(e.Value, underlyingType, ref isMinNumber);
 
                 isDate = underlyingType == typeof(DateTime);
             }
@@ -1854,7 +1889,7 @@ namespace coms.COMMON.ui
             {
                 if (isNumeric)
                 {
-                    if (e.Value != null && double.TryParse(e.Value.ToString(), out double num))
+                    if (e.Value != null && !isMinNumber && double.TryParse(e.Value.ToString(), out double num))
                         text = num.ToString(format);
                     else
                         text = string.Empty;
@@ -1866,6 +1901,11 @@ namespace coms.COMMON.ui
                     else
                         text = string.Empty;
                 }
+                // empty if min-value but ignore format => format string is empty
+            }
+            else if (isNumeric && isMinNumber)
+            {
+                text = string.Empty;
             }
 
             // ========== NEW ICON SUPPORT ==========
@@ -2068,6 +2108,17 @@ namespace coms.COMMON.ui
                 );
             }
         }
+
+        private GraphicsPath GetRoundedRect(Rectangle rect, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
+            path.AddArc(rect.Right - radius, rect.Y, radius, radius, 270, 90);
+            path.AddArc(rect.Right - radius, rect.Bottom - radius, radius, radius, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - radius, radius, radius, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
         #endregion
 
         #region override function
@@ -2149,6 +2200,7 @@ namespace coms.COMMON.ui
             DrawGroupHeaderFullRow(e, row);
         }
         /// <summary>
+        /// Mouse hover event
         /// header style like xtragrid
         /// </summary>
         /// <param name="e"></param>
@@ -2158,15 +2210,27 @@ namespace coms.COMMON.ui
 
             if (e.RowIndex == -1) // header row
             {
-                if (_hoverColumnIndex != e.ColumnIndex)
-                {
-                    _hoverColumnIndex = e.ColumnIndex;
-                    this.Invalidate(); // redraw header
-                }
+                this.Cursor = Cursors.Default;
             }
             else
             {
-                if (_hoverColumnIndex != -1)
+                this.Cursor = Cursors.Default;
+                if (this.Columns[e.ColumnIndex] is DataGridViewButtonColumn btn)
+                {
+                    this.Cursor = Cursors.Hand;
+                    if (_hoverRowIndex != e.RowIndex || _hoverColumnIndex != e.ColumnIndex)
+                    {
+                        _hoverRowIndex = e.RowIndex;
+                        _hoverColumnIndex = e.ColumnIndex;
+                        this.InvalidateCell(e.ColumnIndex, e.RowIndex);
+                    }
+                    return;
+                }
+                else if (this.Columns[e.ColumnIndex] is DataGridViewLinkColumn)
+                {
+                    this.Cursor = Cursors.Hand;
+                }
+                else if (_hoverColumnIndex != -1)
                 {
                     _hoverColumnIndex = -1;
                     this.Invalidate();
@@ -2181,10 +2245,13 @@ namespace coms.COMMON.ui
         {
             base.OnCellMouseLeave(e);
 
-            if (e.RowIndex == -1 && _hoverColumnIndex != -1)
+            if (_hoverRowIndex != -1)
             {
+                int oldR = _hoverRowIndex;
+                int oldC = _hoverColumnIndex;
+                _hoverRowIndex = -1;
                 _hoverColumnIndex = -1;
-                this.Invalidate();
+                this.InvalidateCell(oldC, oldR);
             }
         }
         /// <summary>
@@ -2321,10 +2388,12 @@ namespace coms.COMMON.ui
                     e.Graphics.DrawRectangle(pen, rect.X, rect.Y, rect.Width - 1, rect.Height - 1);
                 }
 
+                var isMouseHover = (i == _hoverColumnIndex && _hoverRowIndex == -1);
                 // ===== 3. HOVER HEADER =====
-                if (i == _hoverColumnIndex)
+                if (isMouseHover)
                 {
-                    using (SolidBrush hoverBrush = new SolidBrush(Color.FromArgb(254, 211, 102)))
+                    //using (SolidBrush hoverBrush = new SolidBrush(Color.FromArgb(254, 211, 102)))
+                    using (SolidBrush hoverBrush = new SolidBrush(_buttonHoverBgColor))
                     {
                         e.Graphics.FillRectangle(hoverBrush, rect);
                     }
@@ -2344,7 +2413,7 @@ namespace coms.COMMON.ui
 
                 // ===== 7. ICON FILTER 
                 bool shouldDrawFilterIcon =
-                        isFiltered || i == _hoverColumnIndex;
+                        isFiltered || isMouseHover;
 
                 if (shouldDrawFilterIcon)
                     this.DrawFilterIcon(
@@ -2396,18 +2465,18 @@ namespace coms.COMMON.ui
                     {
                         Point[] arrowTop = new Point[]
                         {
-                    new Point(adjustedX, y1),
-                    new Point(adjustedX - 5, y1 + 8),
-                    new Point(adjustedX + 5, y1 + 8)
+            new Point(adjustedX, y1),
+            new Point(adjustedX - 5, y1 + 8),
+            new Point(adjustedX + 5, y1 + 8)
                         };
                         e.Graphics.FillPolygon(brush, arrowTop);
 
                         // ✅ Draw bottom arrow
                         Point[] arrowBottom = new Point[]
                         {
-                    new Point(adjustedX, y2),
-                    new Point(adjustedX - 5, y2 - 8),
-                    new Point(adjustedX + 5, y2 - 8)
+            new Point(adjustedX, y2),
+            new Point(adjustedX - 5, y2 - 8),
+            new Point(adjustedX + 5, y2 - 8)
                         };
                         e.Graphics.FillPolygon(brush, arrowBottom);
                     }
@@ -2591,19 +2660,16 @@ namespace coms.COMMON.ui
             // ✅ Existing hover logic for column headers (using HitTest, not e.RowIndex)
             var hit = this.HitTest(e.X, e.Y);
 
+            if (hit.RowIndex >= 0 && hit.ColumnIndex >= 0)
+            {
+                return;
+            }
+
             if (hit.RowIndex == -1) // header row
             {
                 if (_hoverColumnIndex != hit.ColumnIndex)
                 {
                     _hoverColumnIndex = hit.ColumnIndex;
-                    this.Invalidate();
-                }
-            }
-            else
-            {
-                if (_hoverColumnIndex != -1)
-                {
-                    _hoverColumnIndex = -1;
                     this.Invalidate();
                 }
             }
@@ -2816,7 +2882,7 @@ namespace coms.COMMON.ui
 
             base.OnCellMouseClick(e);
 
-            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0 && e.RowIndex < this.Rows.Count)
             {
                 DataGridViewColumn clickedColumn = this.Columns[e.ColumnIndex];
                 Rectangle rcell = this.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, false);
@@ -2842,7 +2908,7 @@ namespace coms.COMMON.ui
                 DataGridViewColumn currentColumn = this.Columns[e.ColumnIndex];
                 // init EventArgs
                 var args = new CustomColumnDisplayTextEventArgs(e.ColumnIndex, e.RowIndex, e.Value, currentColumn);
-                
+
                 // run event
                 OnCustomColumnDisplayText(args);
 
