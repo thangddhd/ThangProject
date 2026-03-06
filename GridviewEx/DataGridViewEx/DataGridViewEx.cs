@@ -59,7 +59,7 @@ namespace coms.COMMON.ui
         public event EventHandler<CustomColumnDisplayTextEventArgs> CustomColumnDisplayText;
         //XtraGridのCustomRowCellEditイベントを再現する
         public event EventHandler<CustomRowCellEditEventArgs> CustomRowCellEdit;
-        //XtraGridのCustomRowCellEditイベントを再現する
+        //XtraGridのCustomColumnDataイベントを再現する
         public event EventHandler<CustomColumnDataEventArgs> CustomColumnData;
         //CellMouseClick（マウスクリックする際にCellのRowIndex、ColumnIndex、クリックしたマウスのボタン...取得できる）と
         //CellContentClick(ボタンにクリックする場合)より提供するサービスが多い。
@@ -84,6 +84,13 @@ namespace coms.COMMON.ui
         private static readonly Color _buttonHoverBgColor = Color.FromArgb(255, 235, 140);
         private static readonly Color _buttonDisabledBgColor = Color.LightGray;
         private static readonly Color _buttonBorderColor = Color.FromArgb(180, 180, 180);
+        public static readonly Color READONLY_COLOR = Color.FromArgb(230, 230, 230);//gray～
+        public static readonly Color TEXT_COLOR = Color.FromArgb(255, 255, 255); // white
+
+        //Define Repositorys For CustomRowCellEdit Event
+        public List<string> ListCellEditorColumnNames { get; set; } = new List<string>();
+        private Dictionary<string, DataGridViewComboBoxCell> _repositoryItems = new Dictionary<string, DataGridViewComboBoxCell>();
+
         //--------------------------
 
         private string _groupColumn = null;
@@ -899,6 +906,17 @@ namespace coms.COMMON.ui
             this.ResumeLayout();
         }
 
+        public void InitializeRepository(string key, Dictionary<int, string> data)
+        {
+            var comboCell = new DataGridViewComboBoxCell();
+            comboCell.DataSource = new BindingSource(data, null);
+            comboCell.DisplayMember = "Value";
+            comboCell.ValueMember = "Key";
+            comboCell.FlatStyle = FlatStyle.Flat; // display style
+
+            _repositoryItems[key] = comboCell;
+        }
+
         private string GetComboDisplayText(DataGridViewComboBoxCell cell)
         {
             if (cell == null)
@@ -966,6 +984,8 @@ namespace coms.COMMON.ui
         #region Events & Painting
         private void GroupableDataGridView_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
         {
+            ChangeCellEditor(Columns);
+
             // When binding completes and grouping is set, rebuild grouping
             if (!string.IsNullOrEmpty(_groupColumn))
                 RebuildGrouping();
@@ -1093,6 +1113,13 @@ namespace coms.COMMON.ui
                 e.Graphics.FillRectangle(brush, e.CellBounds);
             }
 
+            // --- Draw top cell for merged cells) ---
+            // 順番が必要の為、先にCellを描いた方が良い
+            if (e.RowIndex == top)
+            {
+                this.DrawTopCell(e, column, back, fore, top, bottom);
+            }
+
             // --- Draw cell borders ---
             Color borderColor = ColorTranslator.FromHtml("#EAE6DB");
             using (var pen = new Pen(borderColor, 0.5f))
@@ -1108,6 +1135,7 @@ namespace coms.COMMON.ui
             }
 
             // --- Draw current cell border ---
+            // 順番が必要の為、最後にCellの枠を描く
             bool isCurrentCell = this.CurrentCell != null &&
                                  this.CurrentCell.RowIndex == e.RowIndex &&
                                  this.CurrentCell.ColumnIndex == e.ColumnIndex;
@@ -1123,12 +1151,6 @@ namespace coms.COMMON.ui
                     rect.Height -= 1;
                     e.Graphics.DrawRectangle(pen, rect);
                 }
-            }
-
-            // --- Draw top cell for merged cells ---
-            if (e.RowIndex == top)
-            {
-                this.DrawTopCell(e, column, back, fore, top, bottom);
             }
 
             e.Handled = true;
@@ -1647,7 +1669,7 @@ namespace coms.COMMON.ui
 
             bool enabled = true;
             Image icon = null;
-            Color backColor = Color.Empty;
+            Color backColor = _buttonBgColor; //TODO：ユーザー設定できるように
 
             // if has default icon
             if (_buttonColumnIcons.TryGetValue(column.Name, out var defaultIcon))
@@ -1985,21 +2007,27 @@ namespace coms.COMMON.ui
             // =======================================
 
 
-            Rectangle cell = e.CellBounds;
-            Rectangle textRect = cell;
+            Rectangle cellBound = e.CellBounds;
+            Rectangle textRect = cellBound;
 
+            // ===== Background when disabled =====
+            Color backColor = e.CellStyle.BackColor;
+            using (Brush backBrush = new SolidBrush(backColor))
+            {
+                e.Graphics.FillRectangle(backBrush, e.CellBounds);
+            }
 
             // ===== ICON POSITION BY ALIGNMENT =====
             if (icon != null)
             {
-                int iconX = cell.X + 4;
-                int iconY = cell.Y + (cell.Height - iconSize) / 2;
+                int iconX = cellBound.X + 4;
+                int iconY = cellBound.Y + (cellBound.Height - iconSize) / 2;
 
                 if (isCenter)
-                    iconX = cell.X + (cell.Width - iconSize) / 2;
+                    iconX = cellBound.X + (cellBound.Width - iconSize) / 2;
 
                 if (isRight)
-                    iconX = cell.Right - iconSize - 4;
+                    iconX = cellBound.Right - iconSize - 4;
 
                 Rectangle iconRect = new Rectangle(iconX, iconY, iconSize, iconSize);
                 e.Graphics.DrawImage(icon, iconRect);
@@ -2038,12 +2066,16 @@ namespace coms.COMMON.ui
             string text = GetComboDisplayText(cell);
 
             Rectangle rect = e.CellBounds;
-
-            using (var b = new SolidBrush(back))
+            bool isReadOnly = cell.ReadOnly;
+            Color backgroundColor = back;
+            if (isReadOnly)
+            {
+                backgroundColor = READONLY_COLOR;
+            }
+            using (var b = new SolidBrush(backgroundColor))
             {
                 e.Graphics.FillRectangle(b, rect);
             }
-
             TextFormatFlags flags =
                 TextFormatFlags.VerticalCenter |
                 TextFormatFlags.Left |
@@ -2067,11 +2099,14 @@ namespace coms.COMMON.ui
                 16
             );
 
-            ControlPaint.DrawComboButton(
-                e.Graphics,
-                dropRect,
-                ButtonState.Normal
-            );
+            if (!isReadOnly)
+            {
+                ControlPaint.DrawComboButton(
+                    e.Graphics,
+                    dropRect,
+                    ButtonState.Normal
+                );
+            }
         }
 
         private void DrawTimeColumn(DataGridViewCellPaintingEventArgs e, DataGridViewColumn column, Color fore)
@@ -2337,7 +2372,6 @@ namespace coms.COMMON.ui
             _lastSortedColumnName = propName;
             _lastSortDirection = newDirection;
 
-            // Keep for compatibility with existing code paths
             _lastSortString = $"[{propName}] {(newDirection == ListSortDirection.Ascending ? "ASC" : "DESC")}";
 
             // ✅ NEW: custom numeric sort for selected columns
@@ -2347,7 +2381,6 @@ namespace coms.COMMON.ui
                 return;
             }
 
-            // default behavior
             ApplyListFilterAndSort();
         }
         /// <summary>
@@ -3128,13 +3161,51 @@ namespace coms.COMMON.ui
         // Customize Event functions
         //--------------------------
         #region Customize Event functions
+        private void ChangeCellEditor(DataGridViewColumnCollection Columns)
+        {
+            if (ListCellEditorColumnNames == null) return;
+            foreach (string colName in ListCellEditorColumnNames)
+            {
+                foreach (DataGridViewRow row in this.Rows)
+                {
+                    if (row.IsNewRow) continue;
+
+                    //Push event into form
+                    var args = new CustomRowCellEditEventArgs(row.Index, Columns[colName], row.Cells[colName], row.DataBoundItem);
+                    OnCustomRowCellEditor(args);
+                    //CallBack
+                    if (args.CellEditor is DataGridViewComboBoxCell)
+                    {
+                        var newCell = (DataGridViewComboBoxCell)args.CellEditor.Clone();
+
+                        // change cell
+                        row.Cells[args.ColumnName] = newCell;
+
+                        // Disable
+                        if (args.ReadOnly)
+                        {
+                            newCell.ReadOnly = true;
+                        }
+                        this.InvalidateCell(newCell);
+                    }
+                    else if (row.Cells[args.ColumnName] is DataGridViewTextBoxCell)
+                    {
+                        row.Cells[args.ColumnName].ReadOnly = args.ReadOnly;
+                        row.Cells[args.ColumnName].Style.BackColor = args.ReadOnly ? READONLY_COLOR : TEXT_COLOR;
+                    }
+
+                }
+            }
+        }
+
         public void OnCustomColumnDisplayText(CustomColumnDisplayTextEventArgs e)
         {
             CustomColumnDisplayText?.Invoke(this, e);
         }
 
-        public void OnCustomRowCellEdit(CustomRowCellEditEventArgs e)
+        public void OnCustomRowCellEditor(CustomRowCellEditEventArgs e)
         {
+            // Callback
             CustomRowCellEdit?.Invoke(this, e);
         }
 

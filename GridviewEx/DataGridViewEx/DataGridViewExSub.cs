@@ -242,6 +242,8 @@ namespace coms.COMMON.ui
         // テキスト変えたい場合
         public string TextValue { get; set; } = null;
 
+        public GridColumnType EditType { get; set; } = GridColumnType.None;
+
         public ComboboxColumnEditEventArgs(DataGridViewColumn column, DataGridViewRow row, object dataBoundItem)
         {
             Column = column;
@@ -356,17 +358,33 @@ namespace coms.COMMON.ui
 
     public class CustomRowCellEditEventArgs : CustomRowCellEventArgs
     {
-        // Editor Template (DevExpress: e.RepositoryItem)
-        public CustomButtonEditorTemplate ButtonTemplate { get; set; }
+        //Xtragrid: RepositoryItem
+        public DataGridViewCell CellEditor { get; set; }
+        public object DataBoundItem { get; }
+        public bool ReadOnly { get; set; } = false;
+        //public bool Enabled { get; set; } = true;
         // Event
         public CustomRowCellEditEventArgs(int rowIndex, object value, DataGridViewColumn currentColumn)
         {
-            this.RowIndex = rowIndex; 
+            this.RowIndex = rowIndex;
             this.ColumnName = currentColumn.Name;
             this.Value = value;
-            this.Column = currentColumn; 
+            this.Column = currentColumn;
             this.Handled = false;
         }
+
+        public CustomRowCellEditEventArgs(int rowIndex, DataGridViewColumn currentColumn, DataGridViewCell currentCell, object dataBoundItem)
+        {
+            RowIndex = rowIndex;
+            ColumnIndex = currentColumn.Index;
+            ColumnName = currentColumn.Name;
+            Column = currentColumn;
+            CellEditor = currentCell;
+            DataBoundItem = dataBoundItem;
+            ReadOnly = currentCell.ReadOnly;
+            this.Handled = false;
+        }
+
     }
 
     public class CustomColumnDataEventArgs : EventArgs
@@ -410,8 +428,8 @@ namespace coms.COMMON.ui
     {
         public MouseButtons Button { get; private set; }
         public Point Location { get; private set; } // (X, Y)
-        public int X { get { return Location.X; }}
-        public int Y { get { return Location.Y; }}
+        public int X { get { return Location.X; } }
+        public int Y { get { return Location.Y; } }
 
         // Thông tin chi tiết về vùng chạm (từ CalcHitInfo)
         public GridHitInfo HitInfo { get; private set; }
@@ -516,7 +534,7 @@ namespace coms.COMMON.ui
     }
 
 
-    
+
 
 
 
