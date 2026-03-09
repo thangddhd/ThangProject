@@ -45,6 +45,18 @@ namespace coms.COMMON.ui
         [DefaultValue(false)]
         public bool KeepFilterAndSort { get; set; } = true;
 
+        // ===== PATCH: new properties =====
+        [Category("Appearance")]
+        [Description("Alternate row background using two FIXED colors (production-safe, independent from StyleSettings).")]
+        [DefaultValue(false)]
+        public bool UsingSeparateRowStyleFixed { get; set; } = false;
+
+        [Category("Appearance")]
+        [Description("Highlight the row that contains the focused/current cell (without changing SelectionMode).")]
+        [DefaultValue(false)]
+        public bool UsingFocusedRowStyle { get; set; } = false;
+
+
         public event Action<DataGridViewRow> ApplyRowStyle;
         public event EventHandler<CellMergeEventArgs> CellMerge;
         public event EventHandler<ButtonIconNeededEventArgs> ButtonIconNeeded;
@@ -86,6 +98,12 @@ namespace coms.COMMON.ui
         private static readonly Color _buttonBorderColor = Color.FromArgb(180, 180, 180);
         public static readonly Color READONLY_COLOR = Color.FromArgb(230, 230, 230);//gray～
         public static readonly Color TEXT_COLOR = Color.FromArgb(255, 255, 255); // white
+
+        // ===== PATCH: fixed colors (from current component defaults) =====
+        // (If you want EXACT colors from your image, tell me the RGB/Hex and I'll adjust.)
+        private static readonly Color _fixedRowBackColor1 = Color.White;
+        private static readonly Color _fixedRowBackColor2 = Color.FromArgb(240, 248, 255);
+        private static readonly Color _fixedFocusedRowBackColor = Color.FromArgb(49, 106, 197); // same as _buttonHoverBgColor
 
         //Define Repositorys For CustomRowCellEdit Event
         public List<string> ListCellEditorColumnNames { get; set; } = new List<string>();
@@ -1066,8 +1084,16 @@ namespace coms.COMMON.ui
 
             // --- Base colors ---
             Color back = StyleSettings.RowBackColor;
-            if (UsingSeparateRowStyle)
+
+            // Priority: UsingSeparateRowStyleFixed > UsingSeparateRowStyle
+            if (UsingSeparateRowStyleFixed)
+            {
+                back = (e.RowIndex % 2 == 0) ? _fixedRowBackColor1 : _fixedRowBackColor2;
+            }
+            else if (UsingSeparateRowStyle)
+            {
                 back = (e.RowIndex % 2 == 0) ? StyleSettings.RowBackColor : StyleSettings.AlternatingRowBackColor;
+            }
 
             Color fore = StyleSettings.RowTextColor;
 
@@ -1083,6 +1109,16 @@ namespace coms.COMMON.ui
                 back = StyleSettings.HoverBackColor;
             }
 
+            // --- Focused/current-cell row highlight (does not change SelectionMode) ---
+            if (UsingFocusedRowStyle && this.CurrentCell != null)
+            {
+                int focusedRowIndex = this.CurrentCell.RowIndex;
+                if (focusedRowIndex >= 0 && focusedRowIndex == e.RowIndex)
+                {
+                    back = _fixedFocusedRowBackColor;
+                }
+            }
+
             // --- Selected row ---
             if (row.Selected && UsingRowSelectedStyle)
             {
@@ -1091,7 +1127,7 @@ namespace coms.COMMON.ui
             }
 
             // --- Row-level event ---
-            if (RowBackColorNeeded != null && !isGroupRow) // グループ対象外
+            if (RowBackColorNeeded != null && !isGroupRow)
             {
                 var rowArgs = new RowBackColorNeededEventArgs(row, row.DataBoundItem, back);
                 RowBackColorNeeded.Invoke(this, rowArgs);
@@ -1104,20 +1140,34 @@ namespace coms.COMMON.ui
                 var cellArgs = new CellBackColorNeededEventArgs(column, row, row.DataBoundItem, back);
                 CellBackColorNeeded.Invoke(this, cellArgs);
                 if (cellArgs.BackColor != Color.Empty)
-                    back = cellArgs.BackColor; // セルが優先
+                    back = cellArgs.BackColor;
             }
 
-            // --- Fill cell background ---
+            // --- Fill cell background (base) ---
             using (var brush = new SolidBrush(back))
             {
                 e.Graphics.FillRectangle(brush, e.CellBounds);
             }
 
-            // --- Draw top cell for merged cells) ---
-            // 順番が必要の為、先にCellを描いた方が良い
+            // --- Draw top cell for merged cells ---
+            // IMPORTANT FIX: make DrawTopCell respect our computed colors
             if (e.RowIndex == top)
             {
-                this.DrawTopCell(e, column, back, fore, top, bottom);
+                var oldBack = e.CellStyle.BackColor;
+                var oldFore = e.CellStyle.ForeColor;
+
+                try
+                {
+                    e.CellStyle.BackColor = back;
+                    e.CellStyle.ForeColor = fore;
+
+                    this.DrawTopCell(e, column, back, fore, top, bottom);
+                }
+                finally
+                {
+                    e.CellStyle.BackColor = oldBack;
+                    e.CellStyle.ForeColor = oldFore;
+                }
             }
 
             // --- Draw cell borders ---
@@ -1135,7 +1185,6 @@ namespace coms.COMMON.ui
             }
 
             // --- Draw current cell border ---
-            // 順番が必要の為、最後にCellの枠を描く
             bool isCurrentCell = this.CurrentCell != null &&
                                  this.CurrentCell.RowIndex == e.RowIndex &&
                                  this.CurrentCell.ColumnIndex == e.ColumnIndex;

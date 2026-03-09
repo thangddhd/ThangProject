@@ -177,6 +177,7 @@
     <Content Include="resource\ya_s_r.gif" />
     <Content Include="resource\ya_w.gif" />
     <Content Include="resource\ya_w_r.gif" />
+    <Content Include="resource\スクリーンショット 2026-03-06 152909.png" />
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="Microsoft.Office.Core">
