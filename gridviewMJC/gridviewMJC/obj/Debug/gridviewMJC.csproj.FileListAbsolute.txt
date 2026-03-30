@@ -1,0 +1,9 @@
+C:\ThangProject\gridviewMJC\gridviewMJC\bin\Debug\gridviewMJC.exe.config
+C:\ThangProject\gridviewMJC\gridviewMJC\bin\Debug\gridviewMJC.exe
+C:\ThangProject\gridviewMJC\gridviewMJC\bin\Debug\gridviewMJC.pdb
+C:\ThangProject\gridviewMJC\gridviewMJC\obj\Debug\gridviewMJC.csproj.AssemblyReference.cache
+C:\ThangProject\gridviewMJC\gridviewMJC\obj\Debug\gridviewMJC.Properties.Resources.resources
+C:\ThangProject\gridviewMJC\gridviewMJC\obj\Debug\gridviewMJC.csproj.GenerateResource.cache
+C:\ThangProject\gridviewMJC\gridviewMJC\obj\Debug\gridviewMJC.csproj.CoreCompileInputs.cache
+C:\ThangProject\gridviewMJC\gridviewMJC\obj\Debug\gridviewMJC.exe
+C:\ThangProject\gridviewMJC\gridviewMJC\obj\Debug\gridviewMJC.pdb

@@ -8,6 +8,8 @@ namespace coms.COMMON.ui
 {
     public static class DataGridViewExHelper
     {
+        public static readonly Color READONLY_COLOR = Color.FromArgb(230, 230, 230);//gray～
+        public static readonly Color TEXT_COLOR = Color.FromArgb(255, 255, 255); // white
         /// <summary>
         /// ロード時専用
         /// </summary>

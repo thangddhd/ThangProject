@@ -32,14 +32,17 @@ namespace GridviewEx
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             coms.COMMON.ui.GridViewStyle gridViewStyle1 = new coms.COMMON.ui.GridViewStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
             this.dataGridViewEx1 = new coms.COMMON.ui.DataGridViewEx();
             this.Column1 = new System.Windows.Forms.DataGridViewButtonColumn();
             this.Column2 = new System.Windows.Forms.DataGridViewCheckBoxColumn();
-            this.Column3 = new System.Windows.Forms.DataGridViewLinkColumn();
+            this.Column3 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Column4 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Column5 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Column6 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Column7 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
+            this.button1 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewEx1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -79,7 +82,7 @@ namespace GridviewEx
             this.dataGridViewEx1.Size = new System.Drawing.Size(769, 565);
             this.dataGridViewEx1.SortAsNumberColumns = ((System.Collections.Generic.HashSet<string>)(resources.GetObject("dataGridViewEx1.SortAsNumberColumns")));
             this.dataGridViewEx1.SortStringChangedInvokeBeforeDatasourceUpdate = true;
-            gridViewStyle1.AlternatingRowBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(245)))), ((int)(((byte)(245)))));
+            gridViewStyle1.AlternatingRowBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(240)))), ((int)(((byte)(248)))), ((int)(((byte)(255)))));
             gridViewStyle1.CellBorderColor = System.Drawing.Color.LightGray;
             gridViewStyle1.FocusedCellBorderColor = System.Drawing.Color.DodgerBlue;
             gridViewStyle1.GroupRowBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(230)))), ((int)(((byte)(230)))), ((int)(((byte)(230)))));
@@ -87,12 +90,12 @@ namespace GridviewEx
             gridViewStyle1.HoverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(235)))), ((int)(((byte)(245)))), ((int)(((byte)(255)))));
             gridViewStyle1.RowBackColor = System.Drawing.Color.White;
             gridViewStyle1.RowTextColor = System.Drawing.Color.Black;
-            gridViewStyle1.SelectedBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(51)))), ((int)(((byte)(153)))), ((int)(((byte)(255)))));
+            gridViewStyle1.SelectedBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(49)))), ((int)(((byte)(106)))), ((int)(((byte)(197)))));
             gridViewStyle1.SelectedTextColor = System.Drawing.Color.White;
             this.dataGridViewEx1.StyleSettings = gridViewStyle1;
             this.dataGridViewEx1.TabIndex = 0;
-            this.dataGridViewEx1.UsingFocusedRowStyle = true;
-            this.dataGridViewEx1.UsingSeparateRowStyleFixed = true;
+            this.dataGridViewEx1.UsingRowSelectedStyle = true;
+            this.dataGridViewEx1.UsingSeparateRowStyle = true;
             // 
             // Column1
             // 
@@ -121,9 +124,12 @@ namespace GridviewEx
             // Column3
             // 
             this.Column3.DataPropertyName = "Column3";
+            dataGridViewCellStyle2.Format = "yyyy-MM-dd";
+            this.Column3.DefaultCellStyle = dataGridViewCellStyle2;
             this.Column3.HeaderText = "Column3";
             this.Column3.MinimumWidth = 24;
             this.Column3.Name = "Column3";
+            this.Column3.ReadOnly = true;
             this.Column3.Resizable = System.Windows.Forms.DataGridViewTriState.True;
             this.Column3.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Programmatic;
             this.Column3.Width = 150;
@@ -164,11 +170,31 @@ namespace GridviewEx
             this.Column7.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Programmatic;
             this.Column7.Width = 150;
             // 
+            // dateTimePicker1
+            // 
+            this.dateTimePicker1.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
+            this.dateTimePicker1.Location = new System.Drawing.Point(867, 68);
+            this.dateTimePicker1.Name = "dateTimePicker1";
+            this.dateTimePicker1.Size = new System.Drawing.Size(104, 19);
+            this.dateTimePicker1.TabIndex = 1;
+            // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(923, 162);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(75, 23);
+            this.button1.TabIndex = 2;
+            this.button1.Text = "button1";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1154, 679);
+            this.Controls.Add(this.button1);
+            this.Controls.Add(this.dateTimePicker1);
             this.Controls.Add(this.dataGridViewEx1);
             this.Margin = new System.Windows.Forms.Padding(2);
             this.Name = "Form1";
@@ -184,11 +210,13 @@ namespace GridviewEx
         private coms.COMMON.ui.DataGridViewEx dataGridViewEx1;
         private System.Windows.Forms.DataGridViewButtonColumn Column1;
         private System.Windows.Forms.DataGridViewCheckBoxColumn Column2;
-        private System.Windows.Forms.DataGridViewLinkColumn Column3;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Column3;
         private System.Windows.Forms.DataGridViewTextBoxColumn Column4;
         private System.Windows.Forms.DataGridViewTextBoxColumn Column5;
         private System.Windows.Forms.DataGridViewTextBoxColumn Column6;
         private System.Windows.Forms.DataGridViewTextBoxColumn Column7;
+        private System.Windows.Forms.DateTimePicker dateTimePicker1;
+        private System.Windows.Forms.Button button1;
     }
 }
 
