@@ -70,7 +70,6 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AdvancedDataGridView.cs" />
     <Compile Include="ColumnChooserPopup.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -114,6 +113,28 @@
     <Compile Include="Form2.Designer.cs">
       <DependentUpon>Form2.cs</DependentUpon>
     </Compile>
+    <Compile Include="Form3.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Form3.Designer.cs">
+      <DependentUpon>Form3.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Form4.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Form4.Designer.cs">
+      <DependentUpon>Form4.cs</DependentUpon>
+    </Compile>
+    <Compile Include="longTermGridView\CellKey.cs" />
+    <Compile Include="longTermGridView\CellStyleOverride.cs" />
+    <Compile Include="longTermGridView\HeaderBandLayout.cs" />
+    <Compile Include="longTermGridView\IVerticalMergeProvider.cs" />
+    <Compile Include="longTermGridView\LongRepairGridView.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="longTermGridView\MergeRegion.cs" />
+    <Compile Include="longTermGridView\MergeStore.cs" />
+    <Compile Include="longTermGridView\RowCellDragEventArgs.cs" />
     <Compile Include="MyForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -130,6 +151,12 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Form2.resx">
       <DependentUpon>Form2.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Form3.resx">
+      <DependentUpon>Form3.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Form4.resx">
+      <DependentUpon>Form4.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MyForm.resx" />
     <EmbeddedResource Include="PrintPreviewForm.resx" />

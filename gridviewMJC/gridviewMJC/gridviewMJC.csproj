@@ -46,14 +46,29 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CtrLongtermRepairPlan_B.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="CtrLongtermRepairPlan_B.Designer.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="longTermGridView\LongRepairGridView.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="longTermGridView\CellKey.cs" />
+    <Compile Include="longTermGridView\CellStyleOverride.cs" />
+    <Compile Include="longTermGridView\HeaderBandLayout.cs" />
+    <Compile Include="longTermGridView\IVerticalMergeProvider.cs" />
+    <Compile Include="longTermGridView\MergeRegion.cs" />
+    <Compile Include="longTermGridView\MergeStore.cs" />
+    <Compile Include="longTermGridView\RowCellDragEventArgs.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="CtrLongtermRepairPlan_B.resx" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>

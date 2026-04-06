@@ -1,4 +1,5 @@
-﻿
+﻿using coms.COMSK.ui.common;
+
 namespace GridviewEx
 {
     partial class Form2
@@ -29,12 +30,13 @@ namespace GridviewEx
         /// </summary>
         private void InitializeComponent()
         {
-            this.SuspendLayout();
+            
             // 
             // Form2
             // 
             this.ClientSize = new System.Drawing.Size(1109, 587);
             this.Name = "Form2";
+            //this.Load += new System.EventHandler(this.Form2_Load);
             this.ResumeLayout(false);
 
         }
