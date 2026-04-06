@@ -25,7 +25,7 @@ namespace coms.COMSK.ui.common
         public Color RowHighlightBottomBorderColor { get; set; }
         public int RowHighlightBorderThickness { get { return _rowBorderThickness; } set { _rowBorderThickness = Math.Max(1, value); } }
 
-        public event EventHandler<RowCellDragEventArgs> RowCellDragCompleted;
+        public event EventHandler<RowCellsDragEventArgs> RowCellsDragCompleted;
 
         public IReadOnlyList<string> LeftColumnNames { get { return _leftColumnNames; } }
         public IReadOnlyList<string> VerticalMergeColumnNames { get { return _verticalMergeColumnNames; } }
@@ -53,6 +53,20 @@ namespace coms.COMSK.ui.common
         private int _selDisplayColMax = -1;
 
         private int _rowBorderThickness = 2;
+
+        private enum DragMode
+        {
+            None,
+            VerticalRangeSelect,  // same column, different rows
+            HorizontalMove        // same row, different columns
+        }
+        private DragMode _dragMode = DragMode.None;
+        // Range selection (same column)
+        private bool _hasRowRangeSelection;
+        private int _rangeAnchorRow = -1;  // first row user pointed to
+        private int _rangeEndRow = -1;     // current end row
+        private int _rangeColumnIndex = -1; // the column being selected (must stay same)
+        private bool _isMouseDown; // to help mode transitions
 
         public LongRepairGridView()
         {
@@ -630,20 +644,29 @@ namespace coms.COMSK.ui.common
             var hit = HitTest(e.X, e.Y);
             if (hit.Type != DataGridViewHitTestType.Cell) return;
 
-            // Only start drag if start column is year column
+            // only year columns participate
             if (!IsYearColumnIndex(hit.ColumnIndex)) return;
 
+            _isMouseDown = true;
             _dragging = true;
-            _dragStart = new CellKey(hit.RowIndex, hit.ColumnIndex);
-            _dragEnd = _dragStart;
             Capture = true;
-
-            _hasDragSelection = true;
-            _selRow = hit.RowIndex;
-            UpdateSelectionRange(_dragStart.Col, _dragEnd.Col);
 
             _normalCursor = this.Cursor;
             _mouseDownPoint = new Point(e.X, e.Y);
+
+            // Start vertical range selection anchored at this cell
+            _dragMode = DragMode.VerticalRangeSelect;
+
+            _rangeAnchorRow = hit.RowIndex;
+            _rangeEndRow = hit.RowIndex;
+            _rangeColumnIndex = hit.ColumnIndex;
+            _hasRowRangeSelection = true;
+
+            // Keep your "highlighted row" = first row user pointed to
+            SetHighlightedRow(_rangeAnchorRow);
+
+            // reset horizontal selection visuals
+            _hasDragSelection = false;
 
             Invalidate();
         }
@@ -656,39 +679,88 @@ namespace coms.COMSK.ui.common
             var hit = HitTest(e.X, e.Y);
             if (hit.Type != DataGridViewHitTestType.Cell) return;
 
-            // If user moves to another row -> disable visuals & show "No"
-            if (hit.RowIndex != _dragStart.Row)
-            {
-                _hasDragSelection = false;
-                this.Cursor = Cursors.No;
-                Invalidate();
-                return;
-            }
-
-            // If user moves onto non-year column -> disable visuals & show "No"
+            // If user moved to non-year column during our drag: show No
             if (!IsYearColumnIndex(hit.ColumnIndex))
             {
-                _hasDragSelection = false;
                 this.Cursor = Cursors.No;
+                _hasDragSelection = false;
                 Invalidate();
                 return;
             }
 
-            // Same row + year area => visuals on
-            if (!_hasDragSelection) _hasDragSelection = true;
-
-            // CURSOR: based on movement direction, not on column change
-            int dx = e.X - _mouseDownPoint.X;
-            if (dx > 0) this.Cursor = Cursors.PanEast;
-            else if (dx < 0) this.Cursor = Cursors.PanWest;
-            else this.Cursor = _normalCursor ?? Cursors.Default;
-
-            // Still update selection range based on end column when it changes
-            if (hit.ColumnIndex != _dragEnd.Col)
+            // If we started vertical select, allow vertical motion only in SAME column
+            if (_dragMode == DragMode.VerticalRangeSelect)
             {
-                _dragEnd = new CellKey(hit.RowIndex, hit.ColumnIndex);
-                UpdateSelectionRange(_dragStart.Col, _dragEnd.Col);
-                Invalidate();
+                if (hit.ColumnIndex == _rangeColumnIndex)
+                {
+                    // update row range
+                    if (hit.RowIndex != _rangeEndRow)
+                    {
+                        _rangeEndRow = hit.RowIndex;
+                        this.Cursor = Cursors.SizeNS;
+                        Invalidate();
+                    }
+                    return;
+                }
+
+                // Column changed:
+                // Allow switching to horizontal move only if on anchor row
+                if (hit.RowIndex == _rangeAnchorRow)
+                {
+                    _dragMode = DragMode.HorizontalMove;
+
+                    _dragStart = new CellKey(_rangeAnchorRow, _rangeColumnIndex);
+                    _dragEnd = new CellKey(_rangeAnchorRow, hit.ColumnIndex);
+
+                    _hasDragSelection = true;
+                    _selRow = _rangeAnchorRow;
+                    UpdateSelectionRange(_dragStart.Col, _dragEnd.Col);
+
+                    // cursor based on dx
+                    int dx = e.X - _mouseDownPoint.X;
+                    if (dx > 0) this.Cursor = Cursors.PanEast;
+                    else if (dx < 0) this.Cursor = Cursors.PanWest;
+                    else this.Cursor = _normalCursor ?? Cursors.Default;
+
+                    Invalidate();
+                }
+                else
+                {
+                    // not on anchor row -> not allowed
+                    this.Cursor = Cursors.No;
+                    _hasDragSelection = false;
+                    Invalidate();
+                }
+
+                return;
+            }
+
+            // Horizontal move mode
+            if (_dragMode == DragMode.HorizontalMove)
+            {
+                // Must stay on anchor row
+                if (hit.RowIndex != _rangeAnchorRow)
+                {
+                    this.Cursor = Cursors.No;
+                    _hasDragSelection = false;
+                    Invalidate();
+                    return;
+                }
+
+                // update end column
+                if (hit.ColumnIndex != _dragEnd.Col)
+                {
+                    _dragEnd = new CellKey(_rangeAnchorRow, hit.ColumnIndex);
+                    UpdateSelectionRange(_dragStart.Col, _dragEnd.Col);
+                    Invalidate();
+                }
+
+                int dx = e.X - _mouseDownPoint.X;
+                if (dx > 0) this.Cursor = Cursors.PanEast;
+                else if (dx < 0) this.Cursor = Cursors.PanWest;
+                else this.Cursor = _normalCursor ?? Cursors.Default;
+
+                return;
             }
         }
 
@@ -696,32 +768,43 @@ namespace coms.COMSK.ui.common
         {
             if (!_dragging) return;
 
+            _isMouseDown = false;
             _dragging = false;
             Capture = false;
 
-            _hasDragSelection = false;
-
+            // restore cursor
             this.Cursor = _normalCursor ?? Cursors.Default;
             _normalCursor = null;
 
-            // Fire event only if same row and both are year columns and changed column
-            if (_dragStart.Row >= 0 &&
-                _dragEnd.Row == _dragStart.Row &&
-                _dragStart.Col >= 0 &&
-                _dragEnd.Col >= 0 &&
-                _dragStart.Col != _dragEnd.Col &&
-                IsYearColumnIndex(_dragStart.Col) &&
-                IsYearColumnIndex(_dragEnd.Col))
-            {
-                var from = Columns[_dragStart.Col];
-                var to = Columns[_dragEnd.Col];
+            bool didHorizontalMove = (_dragMode == DragMode.HorizontalMove);
 
-                if (from != null && to != null && from.Index != to.Index)
+            // clear horizontal visuals; keep row-range selection stored
+            _hasDragSelection = false;
+
+            // If a horizontal move happened, fire multi-row event
+            if (didHorizontalMove)
+            {
+                bool canFire =
+                    _rangeAnchorRow >= 0 &&
+                    _rangeEndRow >= 0 &&
+                    _dragStart.Col >= 0 &&
+                    _dragEnd.Col >= 0 &&
+                    _dragStart.Col != _dragEnd.Col &&
+                    IsYearColumnIndex(_dragStart.Col) &&
+                    IsYearColumnIndex(_dragEnd.Col);
+
+                if (canFire)
                 {
-                    if (RowCellDragCompleted != null)
-                        RowCellDragCompleted(this, new RowCellDragEventArgs(_dragStart.Row, from, to));
+                    var from = Columns[_dragStart.Col];
+                    var to = Columns[_dragEnd.Col];
+
+                    // new multi-row event
+                    if (RowCellsDragCompleted != null)
+                        RowCellsDragCompleted(this, new RowCellsDragEventArgs(_rangeAnchorRow, _rangeEndRow, from, to));
                 }
             }
+
+            _dragMode = DragMode.None;
 
             Invalidate();
         }

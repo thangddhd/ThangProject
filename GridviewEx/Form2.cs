@@ -52,7 +52,7 @@ namespace GridviewEx
             _grid.IsCalcRow = null;
 
             // Drag completed event
-            _grid.RowCellDragCompleted += Grid_RowCellDragCompleted;
+            _grid.RowCellsDragCompleted += Grid_RowCellsDragCompleted;
 
             // freeze
             FreezeLeftColumns();
@@ -368,10 +368,10 @@ namespace GridviewEx
             _grid.RebuildMerges();
         }
 
-        private void Grid_RowCellDragCompleted(object sender, RowCellDragEventArgs e)
+        private void Grid_RowCellsDragCompleted(object sender, RowCellsDragEventArgs e)
         {
             // Example: show the drag result
-            this.Text = string.Format("Drag row {0}: {1} -> {2}", e.RowIndex, e.FromColumnName, e.ToColumnName);
+            this.Text = string.Format("Drag row {0}-{3}: {1} -> {2}", e.StartRowIndex, e.FromColumnName, e.ToColumnName, e.StartRowIndex);
         }
 
         private void FreezeLeftColumns()

@@ -3,17 +3,22 @@ using System.Windows.Forms;
 
 namespace coms.COMSK.ui.common
 {
-    public sealed class RowCellDragEventArgs : EventArgs
+    public sealed class RowCellsDragEventArgs : EventArgs
     {
-        public int RowIndex { get; private set; }
+        public int StartRowIndex { get; private set; }
+        public int EndRowIndex { get; private set; }
+
         public string FromColumnName { get; private set; }
         public string ToColumnName { get; private set; }
+
         public int FromColumnIndex { get; private set; }
         public int ToColumnIndex { get; private set; }
 
-        public RowCellDragEventArgs(int rowIndex, DataGridViewColumn from, DataGridViewColumn to)
+        public RowCellsDragEventArgs(int startRowIndex, int endRowIndex, DataGridViewColumn from, DataGridViewColumn to)
         {
-            RowIndex = rowIndex;
+            StartRowIndex = Math.Min(startRowIndex, endRowIndex);
+            EndRowIndex = Math.Max(startRowIndex, endRowIndex);
+
             FromColumnName = from != null ? from.Name : null;
             ToColumnName = to != null ? to.Name : null;
             FromColumnIndex = from != null ? from.Index : -1;
