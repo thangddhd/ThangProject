@@ -48,7 +48,6 @@ namespace coms.COMSK.ui.common
 
         // selection range highlight (lavender)
         private bool _hasDragSelection;
-        private int _selRow = -1;
         private int _selDisplayColMin = -1;
         private int _selDisplayColMax = -1;
 
@@ -66,7 +65,7 @@ namespace coms.COMSK.ui.common
         private int _rangeAnchorRow = -1;  // first row user pointed to
         private int _rangeEndRow = -1;     // current end row
         private int _rangeColumnIndex = -1; // the column being selected (must stay same)
-        private bool _isMouseDown; // to help mode transitions
+        private int _activeMoveRow = -1; // row currently used for horizontal dragging (must be inside selected range)
 
         public LongRepairGridView()
         {
@@ -374,13 +373,31 @@ namespace coms.COMSK.ui.common
                 }
             }
 
-            // drag selection range highlight (lavender)
-            if (_hasDragSelection && e.RowIndex == _selRow && _selDisplayColMin >= 0 && _selDisplayColMax >= 0)
+            // range selection highlight (same column, multiple rows)
+            if (_hasRowRangeSelection && e.ColumnIndex == _rangeColumnIndex)
             {
-                int di = col.DisplayIndex;
-                if (di >= _selDisplayColMin && di <= _selDisplayColMax)
+                int r1 = Math.Min(_rangeAnchorRow, _rangeEndRow);
+                int r2 = Math.Max(_rangeAnchorRow, _rangeEndRow);
+
+                if (e.RowIndex >= r1 && e.RowIndex <= r2)
                 {
                     e.CellStyle.BackColor = Color.Lavender;
+                }
+            }
+            // horizontal selection highlight (multi rows, multiple columns) while dragging
+            else if (_hasDragSelection && _selDisplayColMin >= 0 && _selDisplayColMax >= 0 && _hasRowRangeSelection)
+            {
+                int r1 = Math.Min(_rangeAnchorRow, _rangeEndRow);
+                int r2 = Math.Max(_rangeAnchorRow, _rangeEndRow);
+
+                // only apply to the selected row range
+                if (e.RowIndex >= r1 && e.RowIndex <= r2)
+                {
+                    int di = col.DisplayIndex;
+                    if (di >= _selDisplayColMin && di <= _selDisplayColMax)
+                    {
+                        e.CellStyle.BackColor = Color.Lavender;
+                    }
                 }
             }
 
@@ -647,7 +664,6 @@ namespace coms.COMSK.ui.common
             // only year columns participate
             if (!IsYearColumnIndex(hit.ColumnIndex)) return;
 
-            _isMouseDown = true;
             _dragging = true;
             Capture = true;
 
@@ -688,12 +704,17 @@ namespace coms.COMSK.ui.common
                 return;
             }
 
+            // Selected row range boundaries
+            int r1 = Math.Min(_rangeAnchorRow, _rangeEndRow);
+            int r2 = Math.Max(_rangeAnchorRow, _rangeEndRow);
+            bool inSelectedRowRange = (hit.RowIndex >= r1 && hit.RowIndex <= r2);
+
             // If we started vertical select, allow vertical motion only in SAME column
             if (_dragMode == DragMode.VerticalRangeSelect)
             {
                 if (hit.ColumnIndex == _rangeColumnIndex)
                 {
-                    // update row range
+                    // update row range (same column)
                     if (hit.RowIndex != _rangeEndRow)
                     {
                         _rangeEndRow = hit.RowIndex;
@@ -704,16 +725,18 @@ namespace coms.COMSK.ui.common
                 }
 
                 // Column changed:
-                // Allow switching to horizontal move only if on anchor row
-                if (hit.RowIndex == _rangeAnchorRow)
+                // NEW: Allow switching to horizontal move if on ANY row in selected row range
+                if (inSelectedRowRange)
                 {
                     _dragMode = DragMode.HorizontalMove;
 
-                    _dragStart = new CellKey(_rangeAnchorRow, _rangeColumnIndex);
-                    _dragEnd = new CellKey(_rangeAnchorRow, hit.ColumnIndex);
+                    _activeMoveRow = hit.RowIndex; // NEW
+
+                    // Start/end columns are still based on the original selected column and current hit column
+                    _dragStart = new CellKey(_activeMoveRow, _rangeColumnIndex);
+                    _dragEnd = new CellKey(_activeMoveRow, hit.ColumnIndex);
 
                     _hasDragSelection = true;
-                    _selRow = _rangeAnchorRow;
                     UpdateSelectionRange(_dragStart.Col, _dragEnd.Col);
 
                     // cursor based on dx
@@ -726,7 +749,7 @@ namespace coms.COMSK.ui.common
                 }
                 else
                 {
-                    // not on anchor row -> not allowed
+                    // not in selected range -> not allowed
                     this.Cursor = Cursors.No;
                     _hasDragSelection = false;
                     Invalidate();
@@ -738,8 +761,8 @@ namespace coms.COMSK.ui.common
             // Horizontal move mode
             if (_dragMode == DragMode.HorizontalMove)
             {
-                // Must stay on anchor row
-                if (hit.RowIndex != _rangeAnchorRow)
+                // NEW: Must stay inside selected row range (not only anchor row)
+                if (!inSelectedRowRange)
                 {
                     this.Cursor = Cursors.No;
                     _hasDragSelection = false;
@@ -747,10 +770,19 @@ namespace coms.COMSK.ui.common
                     return;
                 }
 
+                // Update active row if user moves within the selected range
+                if (_activeMoveRow != hit.RowIndex)
+                {
+                    _activeMoveRow = hit.RowIndex;
+                    // keep dragStart/dragEnd row consistent with current row for hit-testing
+                    _dragStart = new CellKey(_activeMoveRow, _rangeColumnIndex);
+                    _dragEnd = new CellKey(_activeMoveRow, _dragEnd.Col);
+                }
+
                 // update end column
                 if (hit.ColumnIndex != _dragEnd.Col)
                 {
-                    _dragEnd = new CellKey(_rangeAnchorRow, hit.ColumnIndex);
+                    _dragEnd = new CellKey(_activeMoveRow, hit.ColumnIndex);
                     UpdateSelectionRange(_dragStart.Col, _dragEnd.Col);
                     Invalidate();
                 }
@@ -768,7 +800,6 @@ namespace coms.COMSK.ui.common
         {
             if (!_dragging) return;
 
-            _isMouseDown = false;
             _dragging = false;
             Capture = false;
 

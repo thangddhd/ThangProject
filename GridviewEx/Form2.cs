@@ -371,7 +371,7 @@ namespace GridviewEx
         private void Grid_RowCellsDragCompleted(object sender, RowCellsDragEventArgs e)
         {
             // Example: show the drag result
-            this.Text = string.Format("Drag row {0}-{3}: {1} -> {2}", e.StartRowIndex, e.FromColumnName, e.ToColumnName, e.StartRowIndex);
+            this.Text = string.Format("Drag row {0}-{3}: {1} -> {2}", e.StartRowIndex, e.FromColumnName, e.ToColumnName, e.EndRowIndex);
         }
 
         private void FreezeLeftColumns()
