@@ -5,6 +5,7 @@ using System.Data;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
+using System.Linq;
 using coms.COMSK.ui.common;
 
 namespace GridviewEx
@@ -50,6 +51,14 @@ namespace GridviewEx
 
             // No calc rows in testObj by default, so keep null (or set false)
             _grid.IsCalcRow = null;
+
+            _grid.CanDragCell = (g, rowIndex, col, model) =>
+            {
+                // old behavior: only RepairPlan rows + column.Tag must match
+                if (model == null) return false;
+                if (model.Row != "BBB") return false;
+                return (col.Tag as string) == "AAA";
+            };
 
             // Drag completed event
             _grid.RowCellsDragCompleted += Grid_RowCellsDragCompleted;
@@ -249,7 +258,9 @@ namespace GridviewEx
             {
                 string colName = "Y_" + idx.ToString();
                 string fieldName = "Y_" + idx.ToString();
-                grid.Columns.Add(CreateCol(colName, fieldName, "yearData", 120));
+                var yearCol = CreateCol(colName, fieldName, "yearData", 120);
+                yearCol.Tag = "AAA";
+                grid.Columns.Add(yearCol);
             }
         }
 
@@ -372,6 +383,7 @@ namespace GridviewEx
         {
             // Example: show the drag result
             this.Text = string.Format("Drag row {0}-{3}: {1} -> {2}", e.StartRowIndex, e.FromColumnName, e.ToColumnName, e.EndRowIndex);
+            var rows = e.DataList.Cast<testObj>().ToList();
         }
 
         private void FreezeLeftColumns()
@@ -420,6 +432,7 @@ namespace GridviewEx
         public string Column2 { get; set; }
         public string Column3 { get; set; }
         public string Column4 { get; set; }
+        public string Row { get; set; }
 
         public int Y_0 { get; set; }
         public int Y_1 { get; set; }
@@ -436,6 +449,7 @@ namespace GridviewEx
             this.Y_1 = val6;
             this.Y_2 = val7;
             this.Y_3 = val8;
+            this.Row = "BBB";
         }
     } 
 }

@@ -20,3 +20,4 @@ C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.exe
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.pdb
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.Form3.resources
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.Form4.resources
+C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.csproj.AssemblyReference.cache

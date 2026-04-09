@@ -53,6 +53,12 @@ namespace coms.COMSK.ui.common
 
         private int _rowBorderThickness = 2;
 
+        /// <summary>
+        /// Optional: business-rule filter for whether a cell is draggable/selectable.
+        /// If null, default rule is: year column only (+ optional DraggableColumnTag).
+        /// </summary>
+        public Func<LongRepairGridView<T>, int, DataGridViewColumn, T, bool> CanDragCell { get; set; }
+
         private enum DragMode
         {
             None,
@@ -586,7 +592,7 @@ namespace coms.COMSK.ui.common
             DataGridViewColumn col = Columns[e.ColumnIndex];
             if (col == null) return;
 
-            if (!IsYearColumn(col.Name)) return;
+            if (!IsDragAllowedAt(e.RowIndex, e.ColumnIndex)) return;
 
             CellKey owner;
             if (MergingEnabled && _mergeStore.TryGetOwner(e.RowIndex, e.ColumnIndex, out owner))
@@ -596,14 +602,6 @@ namespace coms.COMSK.ui.common
 
             CurrentCell = this[e.ColumnIndex, e.RowIndex];
             BeginEdit(true);
-        }
-
-        private bool IsValidDragColumn(int columnIndex)
-        {
-            if (columnIndex < 0 || columnIndex >= this.ColumnCount) return false;
-            DataGridViewColumn col = this.Columns[columnIndex];
-            if (col == null) return false;
-            return IsYearColumn(col.Name);
         }
 
         private void OnCellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
@@ -619,7 +617,7 @@ namespace coms.COMSK.ui.common
             }
 
             DataGridViewColumn col = Columns[e.ColumnIndex];
-            if (col != null && IsYearColumn(col.Name))
+            if (col != null && IsDragAllowedAt(e.RowIndex, e.ColumnIndex))
             {
                 if (!_editPermit.Contains(new CellKey(e.RowIndex, e.ColumnIndex)))
                 {
@@ -639,20 +637,6 @@ namespace coms.COMSK.ui.common
             e.Control.BackColor = Color.White;
         }
 
-        private bool IsYearColumn(string colName)
-        {
-            if (string.IsNullOrEmpty(colName)) return false;
-            if (YearColumnNamePrefixes == null) return false;
-
-            for (int i = 0; i < YearColumnNamePrefixes.Length; i++)
-            {
-                string p = YearColumnNamePrefixes[i];
-                if (!string.IsNullOrEmpty(p) && colName.StartsWith(p, StringComparison.Ordinal))
-                    return true;
-            }
-            return false;
-        }
-
         private void OnMouseDownDrag(object sender, MouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left) return;
@@ -662,7 +646,7 @@ namespace coms.COMSK.ui.common
             if (hit.Type != DataGridViewHitTestType.Cell) return;
 
             // only year columns participate
-            if (!IsYearColumnIndex(hit.ColumnIndex)) return;
+            if (!IsDragAllowedAt(hit.RowIndex, hit.ColumnIndex)) return;
 
             _dragging = true;
             Capture = true;
@@ -696,7 +680,7 @@ namespace coms.COMSK.ui.common
             if (hit.Type != DataGridViewHitTestType.Cell) return;
 
             // If user moved to non-year column during our drag: show No
-            if (!IsYearColumnIndex(hit.ColumnIndex))
+            if (!IsDragAllowedAt(hit.RowIndex, hit.ColumnIndex))
             {
                 this.Cursor = Cursors.No;
                 _hasDragSelection = false;
@@ -821,8 +805,8 @@ namespace coms.COMSK.ui.common
                     _dragStart.Col >= 0 &&
                     _dragEnd.Col >= 0 &&
                     _dragStart.Col != _dragEnd.Col &&
-                    IsYearColumnIndex(_dragStart.Col) &&
-                    IsYearColumnIndex(_dragEnd.Col);
+                    IsDragAllowedAt(_dragStart.Row, _dragStart.Col) &&
+                    IsDragAllowedAt(_dragEnd.Row, _dragEnd.Col);
 
                 if (canFire)
                 {
@@ -831,7 +815,20 @@ namespace coms.COMSK.ui.common
 
                     // new multi-row event
                     if (RowCellsDragCompleted != null)
-                        RowCellsDragCompleted(this, new RowCellsDragEventArgs(_rangeAnchorRow, _rangeEndRow, from, to));
+                    {
+                        int r1 = Math.Min(_rangeAnchorRow, _rangeEndRow);
+                        int r2 = Math.Max(_rangeAnchorRow, _rangeEndRow);
+
+                        var dataList = new List<T>();
+                        for (int r = r1; r <= r2; r++)
+                        {
+                            T m;
+                            if (TryGetRowModel(r, out m))
+                                dataList.Add(m);
+                        }
+
+                        RowCellsDragCompleted(this, new RowCellsDragEventArgs(_rangeAnchorRow, _rangeEndRow, from, to, dataList));
+                    }
                 }
             }
 
@@ -944,13 +941,23 @@ namespace coms.COMSK.ui.common
             return ret;
         }
 
-        // Decide if a column index is a year column
-        private bool IsYearColumnIndex(int colIndex)
+        private bool IsDragAllowedAt(int rowIndex, int colIndex)
         {
-            if (colIndex < 0 || colIndex >= this.ColumnCount) return false;
-            DataGridViewColumn c = this.Columns[colIndex];
-            if (c == null) return false;
-            return IsYearColumn(c.Name);
+            if (rowIndex < 0 || rowIndex >= RowCount) return false;
+            if (colIndex < 0 || colIndex >= ColumnCount) return false;
+
+            var col = Columns[colIndex];
+            if (col == null || !col.Visible) return false;
+
+            // need model to apply business rules
+            T model;
+            if (!TryGetRowModel(rowIndex, out model)) return false;
+
+            // custom business rules hook
+            if (CanDragCell != null)
+                return CanDragCell(this, rowIndex, col, model);
+
+            return false;
         }
     }
 }
