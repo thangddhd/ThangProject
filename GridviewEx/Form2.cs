@@ -14,6 +14,7 @@ namespace GridviewEx
     {
         private LongRepairGridView<testObj> _grid;
         private BindingSource _bs;
+        int _yearStart = 2010;
 
         public Form2()
         {
@@ -43,14 +44,32 @@ namespace GridviewEx
             AddColumns2(_grid);
 
             // Configure merge behavior
-            _grid.SetVerticalMergeColumns(new[] { "Column1", "Column2", "Column3", "Column4" });
+            _grid.SetVerticalMergeColumns(new[] {
+                "bgcolConstructionType", 
+                "bgcolConstructionItem", 
+                "bgcolConstructionCategory", 
+                "bgcolConstructionPosition",
+                "bgcolConstructionRegion",
+                "bgcolConstructionSpecification",
+                "bgcolConstructionDivision",
+                "bgcolRepairConstructionContent"
+            });
             _grid.VerticalMergeProvider = new SimpleTestObjMergeProvider();
 
             // Left columns list (for calc-row horizontal merge) - not used for testObj unless you set IsCalcRow
-            _grid.SetLeftColumnNames(new[] { "Column1", "Column2", "Column3", "Column4" });
+            _grid.SetLeftColumnNames(new[] {
+                 "bgcolConstructionType",
+                "bgcolConstructionItem",
+                "bgcolConstructionCategory",
+                "bgcolConstructionPosition",
+                "bgcolConstructionRegion",
+                "bgcolConstructionSpecification",
+                "bgcolConstructionDivision",
+                "bgcolRepairConstructionContent"
+            });
 
             // No calc rows in testObj by default, so keep null (or set false)
-            _grid.IsCalcRow = null;
+            _grid.IsCalcRow = m => m != null && !string.IsNullOrEmpty(m.RowType) && "T1,T2,T3,T4".Contains(m.RowType);
 
             _grid.CanDragCell = (g, rowIndex, col, model) =>
             {
@@ -70,7 +89,7 @@ namespace GridviewEx
             _grid.SetHeaderLayout(BuildHeaderLikeImage_Correct2());
 
             // Add to form
-            this.Controls.Add(_grid);
+            this.splitContainer1.Panel2.Controls.Add(_grid);
 
             // If you want it below existing controls, use a panel instead of Controls.Add directly.
         }
@@ -100,7 +119,7 @@ namespace GridviewEx
             grid.Columns.Add(CreateCol("bgcolDatumYear", "DatumYear", "周期起算年", 49));
             grid.Columns.Add(CreateCol("bgcolEffectedYear", "ResultYear", "修繕実施年度", 75));
 
-            this.CreateColYearAll(grid);
+            this.CreateColYearAll(grid, _yearStart);
 
             grid.Columns.Add(CreateCol("bgcolSubTotal", "SubTotal", "小計", 75));
         }
@@ -188,8 +207,9 @@ namespace GridviewEx
             layout.HeaderRowHeight = 22;
 
             // ===== Row 0 (full height columns)
-            layout.Cells.Add(MakeHeaderCell(0, 3, "bgcolConstructionType", "工事分類", true));
-            layout.Cells.Add(MakeHeaderCell(0, 3, "bgcolConstructionItem", "工事項目", true));
+            layout.Cells.Add(MakeHeaderCell(0, 3, "bgcolSubTotal", "小計", true));
+            layout.Cells.Add(MakeHeaderCell(0, 3, new[] { "bgcolConstructionType", "bgcolConstructionItem" }, "工事分類 工事項目", true));
+            //layout.Cells.Add(MakeHeaderCell(0, 3, "bgcolConstructionItem", "工事項目", true));
             layout.Cells.Add(MakeHeaderCell(0, 3, "bgcolConstructionCategory", "工事種別", true));
             layout.Cells.Add(MakeHeaderCell(0, 3, "bgcolConstructionPosition", "位置", true));
             layout.Cells.Add(MakeHeaderCell(0, 3, "bgcolConstructionRegion", "部位", true));
@@ -212,7 +232,6 @@ namespace GridviewEx
             layout.Cells.Add(MakeHeaderCell(0, 3, "bgcolUnit", "単位", true));
             layout.Cells.Add(MakeHeaderCell(0, 3, "bgcolDatumYear", "周期\n起算年", true));
 
-            this.CreateBandedYearAll(ref layout);
 
             // ===== 築年 (nested 3 level)
             layout.Cells.Add(MakeHeaderCell(0, 1,
@@ -224,8 +243,9 @@ namespace GridviewEx
             layout.Cells.Add(MakeHeaderCell(2, 1,
                 "bgcolEffectedYear", "会計年度", false));
 
+
             // ===== subtotal
-            layout.Cells.Add(MakeHeaderCell(0, 3, "bgcolSubTotal", "小計", true));
+            this.CreateBandedYearAll(ref layout, _yearStart);
 
             return layout;
         }
@@ -240,28 +260,71 @@ namespace GridviewEx
             layout.Cells.Add(MakeHeaderCell(2, 1, colName, year, false));
         }
 
-        private void CreateBandedYearAll(ref HeaderBandLayout layout)
+        private void CreateBandedYearAll(ref HeaderBandLayout layout, int yearStart, int count = 60)
         {
-            for (int idx = 0; idx < 60; idx++)
+            for (int i = 0; i < count; i++)
             {
-                string colName = "Y_" + idx.ToString();
-                string yearIdx = (idx + 1).ToString() + "年目";
-                string termIdx = (idx + 1).ToString() + "期";
-                string year = (idx + 2001).ToString() + "年";
-                this.CreateBandedYear(ref layout, colName, yearIdx, termIdx, year);
+                int year = yearStart + i;
+                string colName = "Y_" + year.ToString();
+
+                string yearIdx = (i + 1).ToString() + "年目";
+                string termIdx = (i + 1).ToString() + "期";
+                string yearText = year.ToString() + "年";
+
+                this.CreateBandedYear(ref layout, colName, yearIdx, termIdx, yearText);
             }
         }
 
-        private void CreateColYearAll(DataGridView grid)
+        private void CreateColYearAll(DataGridView grid, int yearStart, int count = 60)
         {
-            for (int idx = 0; idx < 60; idx++)
+            const string YEAR_TAG = "AAA"; // or COMSKCommon.TAG_DRAGGABLE_CELL
+            const string SUBTOTAL_COL = "bgcolSubTotal";
+
+            // Find where subtotal currently is (by DisplayIndex)
+            int subTotalDisplayIndex = grid.Columns.Contains(SUBTOTAL_COL)
+                ? grid.Columns[SUBTOTAL_COL].DisplayIndex
+                : grid.Columns.Count;
+
+            // 1) remove existing year columns
+            var remove = new List<DataGridViewColumn>();
+            foreach (DataGridViewColumn c in grid.Columns)
             {
-                string colName = "Y_" + idx.ToString();
-                string fieldName = "Y_" + idx.ToString();
-                var yearCol = CreateCol(colName, fieldName, "yearData", 120);
-                yearCol.Tag = "AAA";
-                grid.Columns.Add(yearCol);
+                if ((c.Tag as string) == YEAR_TAG)
+                    remove.Add(c);
             }
+            foreach (var c in remove)
+                grid.Columns.Remove(c);
+
+            // subtotal display index may shift after removals, recompute safely
+            subTotalDisplayIndex = grid.Columns.Contains(SUBTOTAL_COL)
+                ? grid.Columns[SUBTOTAL_COL].DisplayIndex
+                : grid.Columns.Count;
+
+            // 2) add new year columns
+            var newYearCols = new List<DataGridViewColumn>();
+            for (int i = 0; i < count; i++)
+            {
+                int year = yearStart + i;
+                string colName = "Y_" + year;
+
+                var col = CreateCol(colName, colName, "yearData", 120);
+                col.Tag = YEAR_TAG;
+
+                grid.Columns.Add(col);
+                newYearCols.Add(col);
+            }
+
+            // 3) force the year columns to sit immediately before subtotal, preserving order
+            // Example: if subtotal display index is 15, years become 15..74, subtotal becomes 75.
+            int di = subTotalDisplayIndex;
+            foreach (var c in newYearCols)
+            {
+                c.DisplayIndex = di++;
+            }
+
+            // ensure subtotal is last among that group
+            if (grid.Columns.Contains(SUBTOTAL_COL))
+                grid.Columns[SUBTOTAL_COL].DisplayIndex = di;
         }
 
         private HeaderBandLayout BuildHeaderLikeImage_Correct()
@@ -365,10 +428,18 @@ namespace GridviewEx
             list.Add(new testObj("B", "B1", "Y", "K", 13, 43, 23, 33));
             list.Add(new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34));
             list.Add(new testObj("A", "A1", "X", "K", 10, 40, 20, 30));
-            list.Add(new testObj("A", "A1", "X", "K", 11, 41, 21, 31));
-            list.Add(new testObj("A", "A1", "Y", "K", 12, 42, 22, 32));
-            list.Add(new testObj("B", "B1", "Y", "K", 13, 43, 23, 33));
-            list.Add(new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34));
+            var obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
+            obj.RowType = "T1";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
+            obj.RowType = "T2";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "K", 13, 43, 23, 33);
+            obj.RowType = "T3";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34);
+            obj.RowType = "T4";
+            list.Add(obj);
 
             _bs = new BindingSource();
             _bs.DataSource = list;
@@ -408,6 +479,21 @@ namespace GridviewEx
             _grid.Columns["bgcolDatumYear"].Frozen = true;
             _grid.Columns["bgcolEffectedYear"].Frozen = true;
         }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            _yearStart = int.Parse(this.textBox1.Text);
+            // rebuild year columns (names + DataPropertyName)
+            CreateColYearAll(_grid, _yearStart, 60);
+
+            // rebuild banded header layout to reference new names
+            _grid.SetHeaderLayout(BuildHeaderLikeImage_Correct2());
+
+            // If you rely on merges after changing columns:
+            _grid.RebuildMerges();
+
+            _grid.Invalidate();
+        }
     }
 
     // Example vertical merge provider: merges Column1..Column4 when equal.
@@ -438,6 +524,7 @@ namespace GridviewEx
         public int Y_1 { get; set; }
         public int Y_2 { get; set; }
         public int Y_3 { get; set; }
+        public string RowType { get; set; }
 
         public testObj(string val1, string val2, string val3, string val4, int val5, int val8, int val6, int val7)
         {
