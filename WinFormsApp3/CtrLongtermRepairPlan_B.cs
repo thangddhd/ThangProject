@@ -169,7 +169,7 @@ namespace coms.COMSK.ui.common
 			//m_Helper = null;
 
 			InitializeComponent();
-			//this.initGridView();
+			this.initGridView();
 
 			//  工事分類 = 設備の場合のみ、ラベルを書き換える
 
