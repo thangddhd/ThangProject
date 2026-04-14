@@ -117,6 +117,8 @@ namespace GridviewEx
             this.reserveGridView1.CellBeginEditRule += new System.EventHandler<coms.COMMON.ui.ReserveCellBeginEditEventArgs>(this.reserveGridView1_CellBeginEditRule);
             this.reserveGridView1.EditingControlRule += new System.EventHandler<coms.COMMON.ui.ReserveEditingControlShowingEventArgs>(this.reserveGridView1_EditingControlRule);
             this.reserveGridView1.CellStyleNeeded += new System.EventHandler<coms.COMMON.ui.ReserveCellStyleNeededEventArgs>(this.reserveGridView1_CellStyleNeeded);
+            this.reserveGridView1.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.reserveGridView1_CellValueChanged);
+            this.reserveGridView1.CellValueNeeded += new System.Windows.Forms.DataGridViewCellValueEventHandler(this.reserveGridView1_CellValueNeeded);
             // 
             // Column2
             // 

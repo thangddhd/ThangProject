@@ -1,25 +1,16 @@
-﻿// Namespace requested by user
-namespace coms.COMMON.ui
+﻿namespace coms.COMMON.ui
 {
     using System;
     using System.ComponentModel;
     using System.Drawing;
     using System.Windows.Forms;
 
-    /// <summary>
-    /// Minimal customized DataGridView base control.
-    /// - TextBox columns only (no merge)
-    /// - Cell-level: display text, readonly, style, editor config
-    /// - Two modes: Editable / ReadOnly
-    /// - Uses DataGridView built-in behaviors as much as possible
-    /// </summary>
     [ToolboxItem(true)]
     [DesignerCategory("Code")]
     public class ReserveGridView : DataGridView
     {
         public ReserveGridView()
         {
-            // Minimal defaults (only those you already requested/confirmed)
             AllowUserToAddRows = false;
             AllowUserToDeleteRows = false;
 
@@ -29,19 +20,14 @@ namespace coms.COMMON.ui
             SelectionMode = DataGridViewSelectionMode.CellSelect;
             MultiSelect = false;
 
-            // Typical “grid-like” behavior; safe defaults
-            AutoGenerateColumns = true; // You can set false in forms if you prefer manual columns
+            AutoGenerateColumns = true;
             EditMode = DataGridViewEditMode.EditOnEnter;
 
-            // Wire once here so parent forms don't repeat wiring logic
             CellFormatting += ReserveGridView_CellFormatting;
+            CellPainting += ReserveGridView_CellPainting;
             CellBeginEdit += ReserveGridView_CellBeginEdit;
             EditingControlShowing += ReserveGridView_EditingControlShowing;
         }
-
-        // -----------------------------
-        // Mode
-        // -----------------------------
 
         private ReserveGridViewMode _mode = ReserveGridViewMode.Editable;
 
@@ -52,49 +38,20 @@ namespace coms.COMMON.ui
             set
             {
                 _mode = value;
-                // Do NOT force DataGridView.ReadOnly here, because we want cell-level control.
-                // Just refresh so formatting (focused readonly, etc.) updates immediately.
                 Invalidate();
             }
         }
 
-        // Optional focus colors (keep null to preserve DataGridView defaults)
         public Color? FocusedCellBackColor { get; set; }
         public Color? FocusedReadOnlyCellBackColor { get; set; }
+        public Color? FocusedCellForeColor { get; set; }
+        public Color? FocusedReadOnlyCellForeColor { get; set; }
 
-        // -----------------------------
-        // Public rule events
-        // -----------------------------
-
-        /// <summary>
-        /// Display-only text override (DevExpress-like CustomColumnDisplayText).
-        /// Fired from CellFormatting.
-        /// </summary>
         public event EventHandler<ReserveCellDisplayTextNeededEventArgs> CellDisplayTextNeeded;
-
-        /// <summary>
-        /// Cell-level read-only rule. Parent can mark the specific cell as readonly.
-        /// </summary>
         public event EventHandler<ReserveCellReadOnlyNeededEventArgs> CellReadOnlyNeeded;
-
-        /// <summary>
-        /// Fired before editing begins. Parent can cancel editing dynamically.
-        /// </summary>
         public event EventHandler<ReserveCellBeginEditEventArgs> CellBeginEditRule;
-
-        /// <summary>
-        /// Fired when the editing control (TextBox) is shown. Parent can set MaxLength, ImeMode, etc.
-        /// </summary>
         public event EventHandler<ReserveEditingControlShowingEventArgs> EditingControlRule;
-
-        /// <summary>
-        /// Cell-level style rule (BackColor/ForeColor). Fired from CellFormatting.
-        /// </summary>
         public event EventHandler<ReserveCellStyleNeededEventArgs> CellStyleNeeded;
-
-        // -----------------------------
-        // Internal helpers
-        // -----------------------------
 
         private object GetRowDataOrNull(int rowIndex)
         {
@@ -104,10 +61,8 @@ namespace coms.COMMON.ui
 
         private bool IsCellReadOnlyEffective(int rowIndex, int colIndex)
         {
-            // Grid-level mode wins
             if (Mode == ReserveGridViewMode.ReadOnly) return true;
 
-            // DataGridView built-in per-cell/per-column readonly settings
             if (rowIndex >= 0 && colIndex >= 0 &&
                 rowIndex < Rows.Count && colIndex < Columns.Count)
             {
@@ -116,7 +71,6 @@ namespace coms.COMMON.ui
                 if (cell.OwningColumn != null && cell.OwningColumn.ReadOnly) return true;
             }
 
-            // Ask parent form (cell-level)
             if (CellReadOnlyNeeded != null)
             {
                 var args = new ReserveCellReadOnlyNeededEventArgs(rowIndex, colIndex, GetRowDataOrNull(rowIndex));
@@ -127,20 +81,14 @@ namespace coms.COMMON.ui
             return false;
         }
 
-        // -----------------------------
-        // DataGridView event handlers
-        // -----------------------------
-
         private void ReserveGridView_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
         {
-            // First: block edit if readonly
             if (IsCellReadOnlyEffective(e.RowIndex, e.ColumnIndex))
             {
                 e.Cancel = true;
                 return;
             }
 
-            // Second: allow parent to cancel dynamically (ShowingEditor equivalent)
             if (CellBeginEditRule != null)
             {
                 var args = new ReserveCellBeginEditEventArgs(e.RowIndex, e.ColumnIndex, GetRowDataOrNull(e.RowIndex));
@@ -151,9 +99,22 @@ namespace coms.COMMON.ui
 
         private void ReserveGridView_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
         {
-            // Only textbox columns are expected. If not textbox, we still safely expose Control.
-            var rowIndex = CurrentCell?.RowIndex ?? -1;
-            var colIndex = CurrentCell?.ColumnIndex ?? -1;
+            var rowIndex = CurrentCell != null ? CurrentCell.RowIndex : -1;
+            var colIndex = CurrentCell != null ? CurrentCell.ColumnIndex : -1;
+
+            if (e.Control is TextBox tb && rowIndex >= 0 && colIndex >= 0)
+            {
+                try
+                {
+                    var raw = this[colIndex, rowIndex].Value;
+                    tb.Text = raw == null ? string.Empty : Convert.ToString(raw);
+                    tb.SelectionStart = tb.TextLength;
+                    tb.SelectionLength = 0;
+                }
+                catch (Exception)
+                {
+                }
+            }
 
             if (EditingControlRule != null)
             {
@@ -174,34 +135,12 @@ namespace coms.COMMON.ui
 
             var rowData = GetRowDataOrNull(e.RowIndex);
 
-            // Compute current/focused cell info
             bool isCurrentCell = (CurrentCell != null &&
                                   CurrentCell.RowIndex == e.RowIndex &&
                                   CurrentCell.ColumnIndex == e.ColumnIndex);
 
             bool isReadOnly = IsCellReadOnlyEffective(e.RowIndex, e.ColumnIndex);
 
-            // 1) Display text (display-only)
-            if (CellDisplayTextNeeded != null)
-            {
-                var displayArgs = new ReserveCellDisplayTextNeededEventArgs(
-                    e.RowIndex,
-                    e.ColumnIndex,
-                    rowData,
-                    e.Value,
-                    isCurrentCell,
-                    isReadOnly);
-
-                CellDisplayTextNeeded(this, displayArgs);
-
-                if (displayArgs.DisplayText != null)
-                {
-                    e.Value = displayArgs.DisplayText;
-                    e.FormattingApplied = true;
-                }
-            }
-
-            // 2) Style
             if (CellStyleNeeded != null)
             {
                 var styleArgs = new ReserveCellStyleNeededEventArgs(
@@ -218,34 +157,112 @@ namespace coms.COMMON.ui
                 if (styleArgs.ForeColor.HasValue) e.CellStyle.ForeColor = styleArgs.ForeColor.Value;
             }
 
-            // 3) Focus highlight (minimal, no custom draw)
-            // We implement it by adjusting selection backcolor, because DataGridView paints selected/current cell
-            // using selection colors.
             if (isCurrentCell)
             {
-                Color? focusColor = null;
+                Color? focusBack = null;
+                Color? focusFore = null;
 
-                if (isReadOnly && FocusedReadOnlyCellBackColor.HasValue)
-                    focusColor = FocusedReadOnlyCellBackColor.Value;
-                else if (FocusedCellBackColor.HasValue)
-                    focusColor = FocusedCellBackColor.Value;
-
-                if (focusColor.HasValue)
+                if (isReadOnly)
                 {
-                    e.CellStyle.SelectionBackColor = focusColor.Value;
-                    // Keep default selection forecolor unless you want custom later
+                    if (FocusedReadOnlyCellBackColor.HasValue) focusBack = FocusedReadOnlyCellBackColor.Value;
+                    if (FocusedReadOnlyCellForeColor.HasValue) focusFore = FocusedReadOnlyCellForeColor.Value;
                 }
+
+                if (!focusBack.HasValue && FocusedCellBackColor.HasValue) focusBack = FocusedCellBackColor.Value;
+                if (!focusFore.HasValue && FocusedCellForeColor.HasValue) focusFore = FocusedCellForeColor.Value;
+
+                if (focusBack.HasValue) e.CellStyle.SelectionBackColor = focusBack.Value;
+                if (focusFore.HasValue) e.CellStyle.SelectionForeColor = focusFore.Value;
             }
         }
 
-        // -----------------------------
-        // Enforce textbox-only columns (minimal guard)
-        // -----------------------------
+        private void ReserveGridView_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (e.Handled) return;
+
+            if (IsCurrentCellInEditMode &&
+                CurrentCell != null &&
+                CurrentCell.RowIndex == e.RowIndex &&
+                CurrentCell.ColumnIndex == e.ColumnIndex)
+            {
+                return;
+            }
+
+            if (CellDisplayTextNeeded == null) return;
+
+            var rowData = GetRowDataOrNull(e.RowIndex);
+
+            bool isCurrentCell = (CurrentCell != null &&
+                                  CurrentCell.RowIndex == e.RowIndex &&
+                                  CurrentCell.ColumnIndex == e.ColumnIndex);
+
+            bool isReadOnly = IsCellReadOnlyEffective(e.RowIndex, e.ColumnIndex);
+
+            object rawValue = null;
+            try
+            {
+                rawValue = this[e.ColumnIndex, e.RowIndex].Value;
+            }
+            catch (Exception)
+            {
+            }
+
+            var displayArgs = new ReserveCellDisplayTextNeededEventArgs(
+                e.RowIndex,
+                e.ColumnIndex,
+                rowData,
+                rawValue,
+                isCurrentCell,
+                isReadOnly);
+
+            CellDisplayTextNeeded(this, displayArgs);
+
+            if (displayArgs.DisplayText == null) return;
+
+            e.PaintBackground(e.ClipBounds, true);
+            e.Paint(e.ClipBounds, DataGridViewPaintParts.Border);
+
+            var textColor = e.State.HasFlag(DataGridViewElementStates.Selected)
+                ? e.CellStyle.SelectionForeColor
+                : e.CellStyle.ForeColor;
+
+            var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+
+            switch (e.CellStyle.Alignment)
+            {
+                case DataGridViewContentAlignment.BottomRight:
+                case DataGridViewContentAlignment.MiddleRight:
+                case DataGridViewContentAlignment.TopRight:
+                    flags |= TextFormatFlags.Right;
+                    break;
+
+                case DataGridViewContentAlignment.BottomCenter:
+                case DataGridViewContentAlignment.MiddleCenter:
+                case DataGridViewContentAlignment.TopCenter:
+                    flags |= TextFormatFlags.HorizontalCenter;
+                    break;
+
+                default:
+                    flags |= TextFormatFlags.Left;
+                    break;
+            }
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                displayArgs.DisplayText,
+                e.CellStyle.Font,
+                e.CellBounds,
+                textColor,
+                flags);
+
+            e.Handled = true;
+        }
+
         protected override void OnColumnAdded(DataGridViewColumnEventArgs e)
         {
             base.OnColumnAdded(e);
 
-            // C# 7.3 compatible: use !(x is Type) instead of "is not"
             if (e.Column != null && !(e.Column is DataGridViewTextBoxColumn))
             {
                 int index = e.Column.Index;
@@ -278,10 +295,6 @@ namespace coms.COMMON.ui
         ReadOnly = 1
     }
 
-    // -----------------------------
-    // EventArgs
-    // -----------------------------
-
     public sealed class ReserveCellReadOnlyNeededEventArgs : EventArgs
     {
         public ReserveCellReadOnlyNeededEventArgs(int rowIndex, int columnIndex, object rowData)
@@ -295,10 +308,6 @@ namespace coms.COMMON.ui
         public int ColumnIndex { get; }
         public object RowData { get; }
 
-        /// <summary>
-        /// Parent sets this to true/false to force readonly state.
-        /// Null means "no opinion".
-        /// </summary>
         public bool? ReadOnly { get; set; }
     }
 
@@ -367,10 +376,6 @@ namespace coms.COMMON.ui
         public bool IsCurrentCell { get; }
         public bool IsReadOnly { get; }
 
-        /// <summary>
-        /// Parent sets this to override the displayed text (display-only).
-        /// Null means "use default formatting".
-        /// </summary>
         public string DisplayText { get; set; }
     }
 

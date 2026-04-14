@@ -55,7 +55,7 @@ namespace GridviewEx
                 objtest data = e.RowData as objtest;
                 if (e.ColumnIndex ==0)
                 {
-                    var str = string.Format("\\{0:F02}", data.Column2);
+                    var str = string.Format("\\{0:F02}", data.Column2 / 1000);
                     e.DisplayText = str;
                 }
             }
@@ -88,6 +88,16 @@ namespace GridviewEx
         private void reserveGridView1_EditingControlRule(object sender, coms.COMMON.ui.ReserveEditingControlShowingEventArgs e)
         {
 
+        }
+
+        private void reserveGridView1_CellValueNeeded(object sender, DataGridViewCellValueEventArgs e)
+        {
+
+        }
+
+        private void reserveGridView1_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            var bbb = 1;
         }
     }
 
