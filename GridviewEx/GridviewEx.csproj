@@ -127,6 +127,7 @@
     </Compile>
     <Compile Include="longTermGridView\CellKey.cs" />
     <Compile Include="longTermGridView\CellStyleOverride.cs" />
+    <Compile Include="longTermGridView\GridViewCustomEvent.cs" />
     <Compile Include="longTermGridView\HeaderBandLayout.cs" />
     <Compile Include="longTermGridView\IVerticalMergeProvider.cs" />
     <Compile Include="longTermGridView\LongRepairGridView.cs">
@@ -134,7 +135,6 @@
     </Compile>
     <Compile Include="longTermGridView\MergeRegion.cs" />
     <Compile Include="longTermGridView\MergeStore.cs" />
-    <Compile Include="longTermGridView\RowCellDragEventArgs.cs" />
     <Compile Include="MyForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -144,7 +144,7 @@
     <Compile Include="PrintPreviewForm.Designer.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ReserveGridView.cs" />
+    <Compile Include="longTermGridView\ReserveGridView.cs" />
     <Compile Include="Ultility\Number.cs" />
     <Compile Include="Ultility\Text.cs" />
     <EmbeddedResource Include="Form1.resx">

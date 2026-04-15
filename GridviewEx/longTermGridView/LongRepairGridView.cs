@@ -5,6 +5,8 @@ using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 
+using coms.COMMON.ui;
+
 namespace coms.COMSK.ui.common
 {
     public class LongRepairGridView<T> : DataGridView
@@ -29,6 +31,22 @@ namespace coms.COMSK.ui.common
 
         public IReadOnlyList<string> LeftColumnNames { get { return _leftColumnNames; } }
         public IReadOnlyList<string> VerticalMergeColumnNames { get { return _verticalMergeColumnNames; } }
+
+        // --------- ReserveGridView merged APIs ----------
+        // NOTE: Per your request:
+        // - Keep old LongRepairGridView behavior: always neutral selection colors.
+        // - Remove CellReadOnlyNeeded completely (no event, no logic).
+        // - Keep shared event args types (Reserve*EventArgs) as-is in other file.
+        public Color? FocusedCellBackColor { get; set; }
+        public Color? FocusedReadOnlyCellBackColor { get; set; }
+        public Color? FocusedCellForeColor { get; set; }
+        public Color? FocusedReadOnlyCellForeColor { get; set; }
+
+        public event EventHandler<ReserveCellDisplayTextNeededEventArgs> CellDisplayTextNeeded;
+        public event EventHandler<ReserveCellBeginEditEventArgs> CellBeginEditRule;
+        public event EventHandler<ReserveEditingControlShowingEventArgs> EditingControlRule;
+        public event EventHandler<ReserveCellStyleNeededEventArgs> CellStyleNeeded;
+        // -----------------------------------------------
 
         private readonly MergeStore _mergeStore = new MergeStore();
 
@@ -125,6 +143,14 @@ namespace coms.COMSK.ui.common
             }
             catch { }
         }
+
+        // -------- ReserveGridView merged helpers --------
+        private object GetRowDataOrNull(int rowIndex)
+        {
+            if (rowIndex < 0 || rowIndex >= Rows.Count) return null;
+            return Rows[rowIndex].DataBoundItem;
+        }
+        // -----------------------------------------------
 
         // -------- Public APIs --------
         public void SetHeaderLayout(HeaderBandLayout layout)
@@ -407,7 +433,43 @@ namespace coms.COMSK.ui.common
                 }
             }
 
-            // neutral selection
+            // ReserveGridView merged: CellStyleNeeded (kept)
+            if (CellStyleNeeded != null)
+            {
+                var rowData = GetRowDataOrNull(e.RowIndex);
+
+                bool isCurrentCell = (CurrentCell != null &&
+                                      CurrentCell.RowIndex == e.RowIndex &&
+                                      CurrentCell.ColumnIndex == e.ColumnIndex);
+
+                // We do not have CellReadOnlyNeeded; "read-only" means effective DataGridView flags only.
+                bool isReadOnly = false;
+                try
+                {
+                    if (e.RowIndex >= 0 && e.ColumnIndex >= 0 &&
+                        e.RowIndex < Rows.Count && e.ColumnIndex < Columns.Count)
+                    {
+                        var cell = Rows[e.RowIndex].Cells[e.ColumnIndex];
+                        isReadOnly = cell.ReadOnly || (cell.OwningColumn != null && cell.OwningColumn.ReadOnly);
+                    }
+                }
+                catch { }
+
+                var styleArgs = new ReserveCellStyleNeededEventArgs(
+                    e.RowIndex,
+                    e.ColumnIndex,
+                    rowData,
+                    e.Value,
+                    isCurrentCell,
+                    isReadOnly);
+
+                CellStyleNeeded(this, styleArgs);
+
+                if (styleArgs.BackColor.HasValue) e.CellStyle.BackColor = styleArgs.BackColor.Value;
+                if (styleArgs.ForeColor.HasValue) e.CellStyle.ForeColor = styleArgs.ForeColor.Value;
+            }
+
+            // keep old LongRepairGridView behavior (always neutral selection colors)
             e.CellStyle.SelectionBackColor = e.CellStyle.BackColor;
             e.CellStyle.SelectionForeColor = e.CellStyle.ForeColor;
         }
@@ -415,6 +477,95 @@ namespace coms.COMSK.ui.common
         private void OnCellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+            // ReserveGridView merged: if current cell is in edit mode, don't custom paint it
+            if (IsCurrentCellInEditMode &&
+                CurrentCell != null &&
+                CurrentCell.RowIndex == e.RowIndex &&
+                CurrentCell.ColumnIndex == e.ColumnIndex)
+            {
+                return;
+            }
+
+            // ReserveGridView merged: custom display text paint hook (takes precedence)
+            if (!e.Handled && CellDisplayTextNeeded != null)
+            {
+                var rowData = GetRowDataOrNull(e.RowIndex);
+
+                bool isCurrentCell = (CurrentCell != null &&
+                                      CurrentCell.RowIndex == e.RowIndex &&
+                                      CurrentCell.ColumnIndex == e.ColumnIndex);
+
+                bool isReadOnly = false;
+                try
+                {
+                    if (e.RowIndex >= 0 && e.ColumnIndex >= 0 &&
+                        e.RowIndex < Rows.Count && e.ColumnIndex < Columns.Count)
+                    {
+                        var cell = Rows[e.RowIndex].Cells[e.ColumnIndex];
+                        isReadOnly = cell.ReadOnly || (cell.OwningColumn != null && cell.OwningColumn.ReadOnly);
+                    }
+                }
+                catch { }
+
+                object rawValue = null;
+                try { rawValue = this[e.ColumnIndex, e.RowIndex].Value; } catch (Exception) { }
+
+                var displayArgs = new ReserveCellDisplayTextNeededEventArgs(
+                    e.RowIndex,
+                    e.ColumnIndex,
+                    rowData,
+                    rawValue,
+                    isCurrentCell,
+                    isReadOnly);
+
+                CellDisplayTextNeeded(this, displayArgs);
+
+                if (displayArgs.DisplayText != null)
+                {
+                    e.PaintBackground(e.ClipBounds, true);
+                    e.Paint(e.ClipBounds, DataGridViewPaintParts.Border);
+
+                    var textColor = e.State.HasFlag(DataGridViewElementStates.Selected)
+                        ? e.CellStyle.SelectionForeColor
+                        : e.CellStyle.ForeColor;
+
+                    var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+
+                    switch (e.CellStyle.Alignment)
+                    {
+                        case DataGridViewContentAlignment.BottomRight:
+                        case DataGridViewContentAlignment.MiddleRight:
+                        case DataGridViewContentAlignment.TopRight:
+                            flags |= TextFormatFlags.Right;
+                            break;
+
+                        case DataGridViewContentAlignment.BottomCenter:
+                        case DataGridViewContentAlignment.MiddleCenter:
+                        case DataGridViewContentAlignment.TopCenter:
+                            flags |= TextFormatFlags.HorizontalCenter;
+                            break;
+
+                        default:
+                            flags |= TextFormatFlags.Left;
+                            break;
+                    }
+
+                    TextRenderer.DrawText(
+                        e.Graphics,
+                        displayArgs.DisplayText,
+                        e.CellStyle.Font,
+                        e.CellBounds,
+                        textColor,
+                        flags);
+
+                    e.Handled = true;
+                    return;
+                }
+            }
+
+            // Existing LongRepairGridView merge paint (only if not already handled above)
+            if (e.Handled) return;
             if (!MergingEnabled) return;
 
             CellKey owner;
@@ -616,6 +767,19 @@ namespace coms.COMSK.ui.common
                 return;
             }
 
+            // ReserveGridView merged: begin edit rule hook (kept)
+            if (CellBeginEditRule != null)
+            {
+                var args = new ReserveCellBeginEditEventArgs(e.RowIndex, e.ColumnIndex, GetRowDataOrNull(e.RowIndex));
+                CellBeginEditRule(this, args);
+                if (args.Cancel)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+            }
+
+            // existing LongRepairGridView editPermit behavior for drag-allowed cells
             DataGridViewColumn col = Columns[e.ColumnIndex];
             if (col != null && IsDragAllowedAt(e.RowIndex, e.ColumnIndex))
             {
@@ -634,7 +798,38 @@ namespace coms.COMSK.ui.common
 
         private void OnEditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
         {
+            // keep existing behavior
             e.Control.BackColor = Color.White;
+
+            // ReserveGridView merged: textbox init + EditingControlRule
+            var rowIndex = CurrentCell != null ? CurrentCell.RowIndex : -1;
+            var colIndex = CurrentCell != null ? CurrentCell.ColumnIndex : -1;
+
+            if (e.Control is TextBox tb && rowIndex >= 0 && colIndex >= 0)
+            {
+                try
+                {
+                    var raw = this[colIndex, rowIndex].Value;
+                    tb.Text = raw == null ? string.Empty : Convert.ToString(raw);
+                    tb.SelectionStart = tb.TextLength;
+                    tb.SelectionLength = 0;
+                }
+                catch (Exception)
+                {
+                }
+            }
+
+            if (EditingControlRule != null)
+            {
+                var args = new ReserveEditingControlShowingEventArgs(
+                    rowIndex,
+                    colIndex,
+                    GetRowDataOrNull(rowIndex),
+                    e.Control,
+                    e.Control as TextBox);
+
+                EditingControlRule(this, args);
+            }
         }
 
         private void OnMouseDownDrag(object sender, MouseEventArgs e)

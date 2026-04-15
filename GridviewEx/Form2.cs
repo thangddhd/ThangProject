@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.Linq;
+using coms.COMMON.ui;
 using coms.COMSK.ui.common;
 
 namespace GridviewEx
