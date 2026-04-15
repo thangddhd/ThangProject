@@ -518,8 +518,20 @@ namespace coms.COMSK.ui.common
                 return;
             }
 
+            // NEW: if the cell is part of a merged region, do NOT allow CellDisplayTextNeeded
+            // to short-circuit painting, otherwise merged visuals get broken.
+            bool isMergedCell = false;
+            try
+            {
+                CellKey tmpOwner;
+                if (MergingEnabled && _mergeStore.TryGetOwner(e.RowIndex, e.ColumnIndex, out tmpOwner))
+                    isMergedCell = true;
+            }
+            catch { }
+
             // ReserveGridView merged: custom display text paint hook (takes precedence)
-            if (!e.Handled && CellDisplayTextNeeded != null)
+            // BUT: not allowed for merged cells (merged painter must handle them)
+            if (!isMergedCell && !e.Handled && CellDisplayTextNeeded != null)
             {
                 var rowData = GetRowDataOrNull(e.RowIndex);
 
@@ -624,7 +636,6 @@ namespace coms.COMSK.ui.common
             Region oldClip = e.Graphics.Clip;
             try
             {
-                // Clip to just this cell bounds; each visible cell will draw its portion
                 e.Graphics.SetClip(e.CellBounds);
 
                 TextRenderer.DrawText(
@@ -644,7 +655,6 @@ namespace coms.COMSK.ui.common
                 if (oldClip != null) oldClip.Dispose();
             }
 
-            // Optional: draw outer border only (avoid double borders)
             DrawMergedOuterBorderIfNeeded(e, region, mergedRect);
 
             e.Handled = true;
@@ -1184,6 +1194,61 @@ namespace coms.COMSK.ui.common
                 return CanDragCell(this, rowIndex, col, model);
 
             return false;
+        }
+
+        private void ApplyStyleNeededToCellStyle(int rowIndex, int columnIndex, object valueForRule, DataGridViewCellStyle style)
+        {
+            if (style == null) return;
+
+            // Apply programmatic overrides (same behavior as OnCellFormatting)
+            try
+            {
+                DataGridViewColumn col = (columnIndex >= 0 && columnIndex < Columns.Count) ? Columns[columnIndex] : null;
+                string colName = col != null ? col.Name : null;
+
+                if (!string.IsNullOrEmpty(colName))
+                {
+                    CellStyleOverride ov;
+                    if (_cellStyleOverrides.TryGetValue(Tuple.Create(rowIndex, colName), out ov) && ov != null)
+                    {
+                        if (ov.BackColor.HasValue) style.BackColor = ov.BackColor.Value;
+                        if (ov.ForeColor.HasValue) style.ForeColor = ov.ForeColor.Value;
+                        if (ov.Font != null) style.Font = ov.Font;
+                    }
+                }
+            }
+            catch { }
+
+            // Apply CellStyleNeeded rule so OnCellPainting sees the same colors as OnCellFormatting
+            try
+            {
+                if (CellStyleNeeded != null)
+                {
+                    bool isCurrentCell = (CurrentCell != null &&
+                                          CurrentCell.RowIndex == rowIndex &&
+                                          CurrentCell.ColumnIndex == columnIndex);
+
+                    bool isReadOnly = IsCellReadOnlyByRule(rowIndex, columnIndex);
+
+                    var args = new ReserveCellStyleNeededEventArgs(
+                        rowIndex,
+                        columnIndex,
+                        GetRowDataOrNull(rowIndex),
+                        valueForRule,
+                        isCurrentCell,
+                        isReadOnly);
+
+                    CellStyleNeeded(this, args);
+
+                    if (args.BackColor.HasValue) style.BackColor = args.BackColor.Value;
+                    if (args.ForeColor.HasValue) style.ForeColor = args.ForeColor.Value;
+                }
+            }
+            catch { }
+
+            // keep LongRepairGridView behavior: always neutral selection colors
+            style.SelectionBackColor = style.BackColor;
+            style.SelectionForeColor = style.ForeColor;
         }
     }
 }
