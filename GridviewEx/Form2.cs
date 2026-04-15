@@ -83,6 +83,8 @@ namespace GridviewEx
             // Drag completed event
             _grid.RowCellsDragCompleted += Grid_RowCellsDragCompleted;
 
+            _grid.CellStyleNeeded += new System.EventHandler<coms.COMMON.ui.ReserveCellStyleNeededEventArgs>(this.Grid_CellStyleNeeded);
+
             // freeze
             FreezeLeftColumns();
 
@@ -93,6 +95,18 @@ namespace GridviewEx
             this.splitContainer1.Panel2.Controls.Add(_grid);
 
             // If you want it below existing controls, use a panel instead of Controls.Add directly.
+        }
+
+        private void Grid_CellStyleNeeded(object sender, coms.COMMON.ui.ReserveCellStyleNeededEventArgs e)
+        {
+            if (e.ColumnIndex == 0)
+            {
+                e.BackColor = Color.Gray;
+            }
+            else if (e.ColumnIndex == 1)
+            {
+                e.BackColor = Color.Blue;
+            }
         }
 
         private void AddColumns2(DataGridView grid)
@@ -392,44 +406,126 @@ namespace GridviewEx
         private void BindData()
         {
             var list = new BindingList<testObj>();
-            list.Add(new testObj("A", "A1", "X", "K", 10, 40, 20, 30));
-            list.Add(new testObj("A", "A1", "X", "K", 11, 41, 21, 31));
-            list.Add(new testObj("A", "A1", "Y", "K", 12, 42, 22, 32));
-            list.Add(new testObj("B", "B1", "Y", "K", 13, 43, 23, 33));
-            list.Add(new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34));
-            list.Add(new testObj("A", "A1", "X", "K", 10, 40, 20, 30));
-            list.Add(new testObj("A", "A1", "X", "K", 11, 41, 21, 31));
-            list.Add(new testObj("A", "A1", "Y", "K", 12, 42, 22, 32));
-            list.Add(new testObj("B", "B1", "Y", "K", 13, 43, 23, 33));
-            list.Add(new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34));
-            list.Add(new testObj("A", "A1", "X", "K", 10, 40, 20, 30));
-            list.Add(new testObj("A", "A1", "X", "K", 11, 41, 21, 31));
-            list.Add(new testObj("A", "A1", "Y", "K", 12, 42, 22, 32));
-            list.Add(new testObj("B", "B1", "Y", "K", 13, 43, 23, 33));
-            list.Add(new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34));
-            list.Add(new testObj("A", "A1", "X", "K", 10, 40, 20, 30));
-            list.Add(new testObj("A", "A1", "X", "K", 11, 41, 21, 31));
-            list.Add(new testObj("A", "A1", "Y", "K", 12, 42, 22, 32));
-            list.Add(new testObj("B", "B1", "Y", "K", 13, 43, 23, 33));
-            list.Add(new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34));
-            list.Add(new testObj("A", "A1", "X", "K", 10, 40, 20, 30));
-            list.Add(new testObj("A", "A1", "X", "K", 11, 41, 21, 31));
-            list.Add(new testObj("A", "A1", "Y", "K", 12, 42, 22, 32));
-            list.Add(new testObj("B", "B1", "Y", "K", 13, 43, 23, 33));
-            list.Add(new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34));
-            list.Add(new testObj("A", "A1", "Y", "K", 12, 42, 22, 32));
-            list.Add(new testObj("B", "B1", "Y", "K", 13, 43, 23, 33));
-            list.Add(new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34));
-            list.Add(new testObj("A", "A1", "X", "K", 10, 40, 20, 30));
-            list.Add(new testObj("A", "A1", "X", "K", 11, 41, 21, 31));
-            list.Add(new testObj("A", "A1", "Y", "K", 12, 42, 22, 32));
-            list.Add(new testObj("B", "B1", "Y", "K", 13, 43, 23, 33));
-            list.Add(new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34));
-            list.Add(new testObj("A", "A1", "Y", "K", 12, 42, 22, 32));
-            list.Add(new testObj("B", "B1", "Y", "K", 13, 43, 23, 33));
-            list.Add(new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34));
-            list.Add(new testObj("A", "A1", "X", "K", 10, 40, 20, 30));
-            var obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
+            var obj = new testObj("A", "A1", "X", "K", 10, 40, 20, 30);
+            obj.ConstructionTypeName = "仮設";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
+            obj.ConstructionTypeName = "仮設";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
+            obj.ConstructionTypeName = "仮設";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "K", 13, 43, 23, 33);
+            obj.ConstructionTypeName = "仮設";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34);
+            obj.ConstructionTypeName = "仮設";
+            list.Add(obj);
+
+            obj = new testObj("A", "A1", "X", "K", 10, 40, 20, 30);
+            obj.ConstructionTypeName = "仮設";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
+            obj.ConstructionTypeName = "建築";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
+            obj.ConstructionTypeName = "建築";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "K", 13, 43, 23, 33);
+            obj.ConstructionTypeName = "建築";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34);
+            obj.ConstructionTypeName = "建築";
+            list.Add(obj);
+
+            obj = new testObj("A", "A1", "X", "K", 10, 40, 20, 30);
+            obj.ConstructionTypeName = "建築";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
+            obj.ConstructionTypeName = "建築";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
+            obj.ConstructionTypeName = "建築";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "K", 13, 43, 23, 33);
+            obj.ConstructionTypeName = "設備";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34);
+            obj.ConstructionTypeName = "設備";
+            list.Add(obj);
+
+            obj = new testObj("A", "A1", "X", "K", 10, 40, 20, 30);
+            obj.ConstructionTypeName = "設備";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
+            obj.ConstructionTypeName = "設備";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
+            obj.ConstructionTypeName = "設備";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "K", 13, 43, 23, 33);
+            obj.ConstructionTypeName = "設備";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34);
+            obj.ConstructionTypeName = "設備";
+            list.Add(obj);
+
+            obj = new testObj("A", "A1", "X", "K", 10, 40, 20, 30);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "K", 13, 43, 23, 33);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+
+            obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "K", 13, 43, 23, 33);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+
+            obj = new testObj("A", "A1", "X", "K", 10, 40, 20, 30);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "K", 13, 43, 23, 33);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+
+            obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "K", 13, 43, 23, 33);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+            obj = new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34);
+            obj.ConstructionTypeName = "その他";
+            list.Add(obj);
+
+            obj = new testObj("A", "A1", "X", "K", 10, 40, 20, 30);
+            list.Add(obj);
+
+            obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
             obj.RowType = "T1";
             list.Add(obj);
             obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
@@ -504,7 +600,7 @@ namespace GridviewEx
         {
             if (row == null || nextRow == null) return false;
 
-            if (columnName == "Column1") return row.Column1 == nextRow.Column1;
+            if (columnName == "bgcolConstructionType") return row.ConstructionTypeName == nextRow.ConstructionTypeName;
             if (columnName == "Column2") return row.Column2 == nextRow.Column2;
             if (columnName == "Column3") return row.Column3 == nextRow.Column3;
             if (columnName == "Column4") return row.Column4 == nextRow.Column4;
@@ -520,6 +616,15 @@ namespace GridviewEx
         public string Column3 { get; set; }
         public string Column4 { get; set; }
         public string Row { get; set; }
+
+        public string ConstructionTypeName { get; set; }
+        public string ConstructionItemName { get; set; }
+        public string ConstructionCategoryName { get; set; }
+        public string ConstructionPositionName { get; set; }
+        public string ConstructionRegionName { get; set; }
+        public string ConstructionSpecificationName { get; set; }
+        public string ConstructionDivisionName { get; set; }
+        public string RepairConstructionContentName { get; set; }
 
         public int Y_0 { get; set; }
         public int Y_1 { get; set; }

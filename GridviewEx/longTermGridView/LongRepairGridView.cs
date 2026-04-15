@@ -33,10 +33,9 @@ namespace coms.COMSK.ui.common
         public IReadOnlyList<string> VerticalMergeColumnNames { get { return _verticalMergeColumnNames; } }
 
         // --------- ReserveGridView merged APIs ----------
-        // NOTE: Per your request:
+        // NOTE:
         // - Keep old LongRepairGridView behavior: always neutral selection colors.
-        // - Remove CellReadOnlyNeeded completely (no event, no logic).
-        // - Keep shared event args types (Reserve*EventArgs) as-is in other file.
+        // - CellReadOnlyNeeded is re-added per request (business rule readonly).
         public Color? FocusedCellBackColor { get; set; }
         public Color? FocusedReadOnlyCellBackColor { get; set; }
         public Color? FocusedCellForeColor { get; set; }
@@ -46,6 +45,9 @@ namespace coms.COMSK.ui.common
         public event EventHandler<ReserveCellBeginEditEventArgs> CellBeginEditRule;
         public event EventHandler<ReserveEditingControlShowingEventArgs> EditingControlRule;
         public event EventHandler<ReserveCellStyleNeededEventArgs> CellStyleNeeded;
+
+        // NEW: merge from ReserveGridView
+        public event EventHandler<ReserveCellReadOnlyNeededEventArgs> CellReadOnlyNeeded;
         // -----------------------------------------------
 
         private readonly MergeStore _mergeStore = new MergeStore();
@@ -149,6 +151,46 @@ namespace coms.COMSK.ui.common
         {
             if (rowIndex < 0 || rowIndex >= Rows.Count) return null;
             return Rows[rowIndex].DataBoundItem;
+        }
+
+        /// <summary>
+        /// Effective readonly calculation:
+        /// - merged cell => always readonly (keeps LongRepairGridView behavior)
+        /// - otherwise: DataGridView's readonly flags + optional CellReadOnlyNeeded override
+        /// </summary>
+        private bool IsCellReadOnlyByRule(int rowIndex, int columnIndex)
+        {
+            if (rowIndex < 0 || columnIndex < 0) return true;
+            if (rowIndex >= Rows.Count || columnIndex >= Columns.Count) return true;
+
+            // merged => readonly (existing behavior)
+            CellKey owner;
+            if (MergingEnabled && _mergeStore.TryGetOwner(rowIndex, columnIndex, out owner))
+            {
+                return true;
+            }
+
+            bool isReadOnly = false;
+            try
+            {
+                var cell = Rows[rowIndex].Cells[columnIndex];
+                isReadOnly =
+                    this.ReadOnly ||
+                    (Rows[rowIndex].ReadOnly) ||
+                    (cell != null && cell.ReadOnly) ||
+                    (cell != null && cell.OwningColumn != null && cell.OwningColumn.ReadOnly);
+            }
+            catch { }
+
+            // business rule hook (separate from drag logic)
+            if (CellReadOnlyNeeded != null)
+            {
+                var args = new ReserveCellReadOnlyNeededEventArgs(rowIndex, columnIndex, GetRowDataOrNull(rowIndex));
+                CellReadOnlyNeeded(this, args);
+                if (args.ReadOnly.HasValue) isReadOnly = args.ReadOnly.Value;
+            }
+
+            return isReadOnly;
         }
         // -----------------------------------------------
 
@@ -442,18 +484,7 @@ namespace coms.COMSK.ui.common
                                       CurrentCell.RowIndex == e.RowIndex &&
                                       CurrentCell.ColumnIndex == e.ColumnIndex);
 
-                // We do not have CellReadOnlyNeeded; "read-only" means effective DataGridView flags only.
-                bool isReadOnly = false;
-                try
-                {
-                    if (e.RowIndex >= 0 && e.ColumnIndex >= 0 &&
-                        e.RowIndex < Rows.Count && e.ColumnIndex < Columns.Count)
-                    {
-                        var cell = Rows[e.RowIndex].Cells[e.ColumnIndex];
-                        isReadOnly = cell.ReadOnly || (cell.OwningColumn != null && cell.OwningColumn.ReadOnly);
-                    }
-                }
-                catch { }
+                bool isReadOnly = IsCellReadOnlyByRule(e.RowIndex, e.ColumnIndex);
 
                 var styleArgs = new ReserveCellStyleNeededEventArgs(
                     e.RowIndex,
@@ -496,17 +527,7 @@ namespace coms.COMSK.ui.common
                                       CurrentCell.RowIndex == e.RowIndex &&
                                       CurrentCell.ColumnIndex == e.ColumnIndex);
 
-                bool isReadOnly = false;
-                try
-                {
-                    if (e.RowIndex >= 0 && e.ColumnIndex >= 0 &&
-                        e.RowIndex < Rows.Count && e.ColumnIndex < Columns.Count)
-                    {
-                        var cell = Rows[e.RowIndex].Cells[e.ColumnIndex];
-                        isReadOnly = cell.ReadOnly || (cell.OwningColumn != null && cell.OwningColumn.ReadOnly);
-                    }
-                }
-                catch { }
+                bool isReadOnly = IsCellReadOnlyByRule(e.RowIndex, e.ColumnIndex);
 
                 object rawValue = null;
                 try { rawValue = this[e.ColumnIndex, e.RowIndex].Value; } catch (Exception) { }
@@ -679,7 +700,7 @@ namespace coms.COMSK.ui.common
                         cellRect.Right - 1, mergedRect.Top);
                 }
 
-                // Bottom edge segment (this fixes your missing bottom border)
+                // Bottom edge segment
                 if (e.RowIndex == bottomRow)
                 {
                     int y = mergedRect.Bottom - 1;
@@ -743,12 +764,16 @@ namespace coms.COMSK.ui.common
             DataGridViewColumn col = Columns[e.ColumnIndex];
             if (col == null) return;
 
-            if (!IsDragAllowedAt(e.RowIndex, e.ColumnIndex)) return;
-
+            // merged => no edit (existing behavior)
             CellKey owner;
             if (MergingEnabled && _mergeStore.TryGetOwner(e.RowIndex, e.ColumnIndex, out owner))
-                return; // merged => no edit
+                return;
 
+            // NEW: readonly comes from CellReadOnlyNeeded + DataGridView flags (not drag rule)
+            if (IsCellReadOnlyByRule(e.RowIndex, e.ColumnIndex))
+                return;
+
+            // keep the "permit on double click" behavior (but no longer tied to drag-allowed)
             _editPermit.Add(new CellKey(e.RowIndex, e.ColumnIndex));
 
             CurrentCell = this[e.ColumnIndex, e.RowIndex];
@@ -759,9 +784,16 @@ namespace coms.COMSK.ui.common
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
 
-            // merged => read-only
+            // merged => read-only (existing behavior)
             CellKey owner;
             if (MergingEnabled && _mergeStore.TryGetOwner(e.RowIndex, e.ColumnIndex, out owner))
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            // NEW: readonly comes from CellReadOnlyNeeded + DataGridView flags (not drag rule)
+            if (IsCellReadOnlyByRule(e.RowIndex, e.ColumnIndex))
             {
                 e.Cancel = true;
                 return;
@@ -779,15 +811,15 @@ namespace coms.COMSK.ui.common
                 }
             }
 
-            // existing LongRepairGridView editPermit behavior for drag-allowed cells
-            DataGridViewColumn col = Columns[e.ColumnIndex];
-            if (col != null && IsDragAllowedAt(e.RowIndex, e.ColumnIndex))
+            // IMPORTANT CHANGE:
+            // Remove "readonly/edit permit" behavior that depended on IsDragAllowedAt.
+            // Editing permission is now independent from dragging.
+            if (!_editPermit.Contains(new CellKey(e.RowIndex, e.ColumnIndex)))
             {
-                if (!_editPermit.Contains(new CellKey(e.RowIndex, e.ColumnIndex)))
-                {
-                    e.Cancel = true;
-                    return;
-                }
+                // This keeps your old UX: user must double-click to edit.
+                // If you want single-click edit allowed, remove this block.
+                e.Cancel = true;
+                return;
             }
         }
 
@@ -840,7 +872,7 @@ namespace coms.COMSK.ui.common
             var hit = HitTest(e.X, e.Y);
             if (hit.Type != DataGridViewHitTestType.Cell) return;
 
-            // only year columns participate
+            // only year columns participate (drag function)
             if (!IsDragAllowedAt(hit.RowIndex, hit.ColumnIndex)) return;
 
             _dragging = true;
@@ -904,12 +936,12 @@ namespace coms.COMSK.ui.common
                 }
 
                 // Column changed:
-                // NEW: Allow switching to horizontal move if on ANY row in selected row range
+                // Allow switching to horizontal move if on ANY row in selected row range
                 if (inSelectedRowRange)
                 {
                     _dragMode = DragMode.HorizontalMove;
 
-                    _activeMoveRow = hit.RowIndex; // NEW
+                    _activeMoveRow = hit.RowIndex;
 
                     // Start/end columns are still based on the original selected column and current hit column
                     _dragStart = new CellKey(_activeMoveRow, _rangeColumnIndex);
@@ -940,7 +972,7 @@ namespace coms.COMSK.ui.common
             // Horizontal move mode
             if (_dragMode == DragMode.HorizontalMove)
             {
-                // NEW: Must stay inside selected row range (not only anchor row)
+                // Must stay inside selected row range
                 if (!inSelectedRowRange)
                 {
                     this.Cursor = Cursors.No;
@@ -1008,7 +1040,6 @@ namespace coms.COMSK.ui.common
                     var from = Columns[_dragStart.Col];
                     var to = Columns[_dragEnd.Col];
 
-                    // new multi-row event
                     if (RowCellsDragCompleted != null)
                     {
                         int r1 = Math.Min(_rangeAnchorRow, _rangeEndRow);

@@ -20,3 +20,4 @@ C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.csproj.CoreCompileInputs.cache
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.csproj.CopyComplete
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.exe
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.pdb
+C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.csproj.AssemblyReference.cache
