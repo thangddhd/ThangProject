@@ -45,6 +45,7 @@ namespace coms.COMSK.ui.common
         public event EventHandler<ReserveCellBeginEditEventArgs> CellBeginEditRule;
         public event EventHandler<ReserveEditingControlShowingEventArgs> EditingControlRule;
         public event EventHandler<ReserveCellStyleNeededEventArgs> CellStyleNeeded;
+        public event EventHandler<ReserveButtonCellStyleNeededEventArgs> ButtonCellStyleNeeded;
 
         // NEW: merge from ReserveGridView
         public event EventHandler<ReserveCellReadOnlyNeededEventArgs> CellReadOnlyNeeded;
@@ -72,6 +73,9 @@ namespace coms.COMSK.ui.common
         private int _selDisplayColMax = -1;
 
         private int _rowBorderThickness = 2;
+
+        private CellKey _hoverButtonCell = new CellKey(-1, -1);
+        private CellKey _pressedButtonCell = new CellKey(-1, -1);
 
         /// <summary>
         /// Optional: business-rule filter for whether a cell is draggable/selectable.
@@ -129,6 +133,11 @@ namespace coms.COMSK.ui.common
             MouseDown += OnMouseDownDrag;
             MouseMove += OnMouseMoveDrag;
             MouseUp += OnMouseUpDrag;
+
+            CellMouseMove += OnCellMouseMoveButtonHover;
+            CellMouseLeave += OnCellMouseLeaveButtonHover;
+            MouseDown += OnMouseDownButtonPress;
+            MouseUp += OnMouseUpButtonPress;
         }
 
         private void EnableDoubleBuffering()
@@ -500,6 +509,35 @@ namespace coms.COMSK.ui.common
                 if (styleArgs.ForeColor.HasValue) e.CellStyle.ForeColor = styleArgs.ForeColor.Value;
             }
 
+            // Button column visuals (text + base colors)
+            try
+            {
+                var btnArgs = RaiseButtonCellStyleNeeded(e.RowIndex, e.ColumnIndex, e.Value);
+                if (btnArgs != null)
+                {
+                    // Visible=false => visually hide content
+                    if (btnArgs.Visible.HasValue && btnArgs.Visible.Value == false)
+                    {
+                        e.Value = string.Empty;
+                    }
+                    else if (btnArgs.Text != null)
+                    {
+                        e.Value = btnArgs.Text;
+                    }
+
+                    if (btnArgs.BackColor.HasValue) e.CellStyle.BackColor = btnArgs.BackColor.Value;
+                    if (btnArgs.ForeColor.HasValue) e.CellStyle.ForeColor = btnArgs.ForeColor.Value;
+
+                    if (btnArgs.DisabledStyle)
+                    {
+                        // default disabled look (visual only)
+                        if (!btnArgs.BackColor.HasValue) e.CellStyle.BackColor = Color.Gainsboro;
+                        if (!btnArgs.ForeColor.HasValue) e.CellStyle.ForeColor = Color.DimGray;
+                    }
+                }
+            }
+            catch { }
+
             // keep old LongRepairGridView behavior (always neutral selection colors)
             e.CellStyle.SelectionBackColor = e.CellStyle.BackColor;
             e.CellStyle.SelectionForeColor = e.CellStyle.ForeColor;
@@ -517,6 +555,62 @@ namespace coms.COMSK.ui.common
             {
                 return;
             }
+
+            // Rounded gradient button rendering using ButtonCellStyleNeeded
+            try
+            {
+                if (e.RowIndex >= 0 && e.ColumnIndex >= 0 && Columns[e.ColumnIndex] is DataGridViewButtonColumn)
+                {
+                    var args = RaiseButtonCellStyleNeeded(e.RowIndex, e.ColumnIndex, null);
+                    if (args != null)
+                    {
+                        // visible=false => draw nothing (just background + border)
+                        if (args.Visible.HasValue && args.Visible.Value == false)
+                        {
+                            e.PaintBackground(e.ClipBounds, true);
+                            e.Paint(e.ClipBounds, DataGridViewPaintParts.Border);
+                            e.Handled = true;
+                            return;
+                        }
+
+                        // if parent didn't request anything, let default painting happen
+                        bool wants =
+                            args.DisabledStyle ||
+                            args.BackColor.HasValue ||
+                            args.ForeColor.HasValue ||
+                            args.Text != null;
+
+                        if (wants)
+                        {
+                            string btnText = args.Text;
+                            if (btnText == null)
+                            {
+                                try { btnText = Convert.ToString(this[e.ColumnIndex, e.RowIndex].FormattedValue); }
+                                catch { btnText = string.Empty; }
+                            }
+
+                            bool hovered = _hoverButtonCell.Row == e.RowIndex && _hoverButtonCell.Col == e.ColumnIndex;
+                            bool pressed = _pressedButtonCell.Row == e.RowIndex && _pressedButtonCell.Col == e.ColumnIndex;
+
+                            Color back = args.BackColor ?? Color.White;
+                            Color fore = args.ForeColor ?? Color.Black;
+
+                            DrawRoundedGradientButton(
+                                e,
+                                btnText,
+                                back,
+                                fore,
+                                args.DisabledStyle,
+                                hovered,
+                                pressed,
+                                radius: 4);
+
+                            return;
+                        }
+                    }
+                }
+            }
+            catch { }
 
             // NEW: if the cell is part of a merged region, do NOT allow CellDisplayTextNeeded
             // to short-circuit painting, otherwise merged visuals get broken.
@@ -1249,6 +1343,228 @@ namespace coms.COMSK.ui.common
             // keep LongRepairGridView behavior: always neutral selection colors
             style.SelectionBackColor = style.BackColor;
             style.SelectionForeColor = style.ForeColor;
+        }
+
+        private ReserveButtonCellStyleNeededEventArgs RaiseButtonCellStyleNeeded(int rowIndex, int columnIndex, object value)
+        {
+            if (ButtonCellStyleNeeded == null) return null;
+            if (rowIndex < 0 || columnIndex < 0) return null;
+            if (rowIndex >= Rows.Count || columnIndex >= Columns.Count) return null;
+
+            var btnCol = Columns[columnIndex] as DataGridViewButtonColumn;
+            if (btnCol == null) return null;
+
+            bool isCurrentCell = (CurrentCell != null &&
+                                  CurrentCell.RowIndex == rowIndex &&
+                                  CurrentCell.ColumnIndex == columnIndex);
+
+            bool isReadOnly = IsCellReadOnlyByRule(rowIndex, columnIndex);
+
+            var args = new ReserveButtonCellStyleNeededEventArgs(
+                rowIndex,
+                columnIndex,
+                GetRowDataOrNull(rowIndex),
+                value,
+                isCurrentCell,
+                isReadOnly,
+                btnCol);
+
+            ButtonCellStyleNeeded(this, args);
+            return args;
+        }
+
+        private static System.Drawing.Drawing2D.GraphicsPath GetRoundedRect(Rectangle rect, int radius)
+        {
+            int d = radius * 2;
+            var path = new System.Drawing.Drawing2D.GraphicsPath();
+            path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+            path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        private static Color Blend(Color a, Color b, float t)
+        {
+            t = Math.Max(0f, Math.Min(1f, t));
+            int r = (int)(a.R + (b.R - a.R) * t);
+            int g = (int)(a.G + (b.G - a.G) * t);
+            int bl = (int)(a.B + (b.B - a.B) * t);
+            return Color.FromArgb(255, r, g, bl);
+        }
+
+        private void DrawRoundedGradientButton(
+            DataGridViewCellPaintingEventArgs e,
+            string text,
+            Color baseBack,
+            Color fore,
+            bool disabledStyle,
+            bool hovered,
+            bool pressed,
+            int radius = 4)
+        {
+            e.PaintBackground(e.ClipBounds, true);
+            e.Paint(e.ClipBounds, DataGridViewPaintParts.Border);
+
+            // Bigger button (less padding)
+            int padX = 1;
+            int padY = 1;
+            Rectangle r = Rectangle.Inflate(e.CellBounds, -padX, -padY);
+
+            if (r.Width <= 6 || r.Height <= 6)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            // Prevent pill shape: cap radius by height
+            // For ~23px row height: (23-2)/5 ≈ 4
+            int maxByHeight = Math.Max(3, (r.Height - 2) / 5);
+            radius = Math.Max(3, Math.Min(radius, maxByHeight));
+
+            // Disabled overrides (visual only)
+            if (disabledStyle)
+            {
+                baseBack = Color.Gainsboro;
+                fore = SystemColors.GrayText;
+            }
+
+            // Hover: slightly brighter
+            if (!disabledStyle && hovered)
+                baseBack = Blend(baseBack, Color.White, 0.15f);
+
+            // Pressed: slightly darker + invert gradient
+            if (!disabledStyle && pressed)
+                baseBack = Blend(baseBack, Color.Black, 0.08f);
+
+            // Stronger 3-stop gradient
+            Color top = disabledStyle ? Color.Gainsboro : Blend(baseBack, Color.White, 0.78f);
+            Color mid = disabledStyle ? Color.Silver : Blend(baseBack, Color.White, 0.25f);
+            Color bottom = disabledStyle ? Color.Silver : Blend(baseBack, Color.FromArgb(185, 185, 185), 0.35f);
+
+            if (pressed && !disabledStyle)
+            {
+                var tmp = top; top = bottom; bottom = tmp;
+            }
+
+            // Border colors (keep your current good-looking blue border + hover thickness)
+            Color border = disabledStyle ? Color.Gray : Color.FromArgb(60, 120, 215);
+            Color innerBorder = disabledStyle ? Color.DarkGray : Color.FromArgb(140, Color.White);
+
+            var oldSmoothing = e.Graphics.SmoothingMode;
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            try
+            {
+                using (var path = GetRoundedRect(r, radius))
+                {
+                    // Fill with a 3-stop gradient (top->mid->bottom)
+                    using (var brush = new System.Drawing.Drawing2D.LinearGradientBrush(r, top, bottom, 90f))
+                    {
+                        var blend = new System.Drawing.Drawing2D.ColorBlend
+                        {
+                            Colors = new[] { top, mid, bottom },
+                            Positions = new[] { 0f, 0.55f, 1f }
+                        };
+                        brush.InterpolationColors = blend;
+
+                        e.Graphics.FillPath(brush, path);
+                    }
+
+                    // Outer border
+                    using (var pen = new Pen(border, hovered && !disabledStyle ? 2f : 1f))
+                    {
+                        e.Graphics.DrawPath(pen, path);
+                    }
+
+                    // Inner border (crispness)
+                    Rectangle inner = Rectangle.Inflate(r, -2, -2);
+                    using (var innerPath = GetRoundedRect(inner, Math.Max(2, radius - 2)))
+                    using (var pen2 = new Pen(innerBorder, 1f))
+                    {
+                        e.Graphics.DrawPath(pen2, innerPath);
+                    }
+
+                    // Top shine band
+                    if (!disabledStyle)
+                    {
+                        Rectangle shine = new Rectangle(r.X + 2, r.Y + 2, r.Width - 4, (r.Height - 4) / 2);
+                        using (var shinePath = GetRoundedRect(shine, Math.Max(2, radius - 2)))
+                        using (var sb = new SolidBrush(Color.FromArgb(70, Color.White)))
+                        {
+                            e.Graphics.FillPath(sb, shinePath);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                e.Graphics.SmoothingMode = oldSmoothing;
+            }
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                text ?? "",
+                e.CellStyle.Font ?? Font,
+                r,
+                fore,
+                TextFormatFlags.HorizontalCenter |
+                TextFormatFlags.VerticalCenter |
+                TextFormatFlags.EndEllipsis |
+                TextFormatFlags.SingleLine);
+
+            e.Handled = true;
+        }
+
+        private void OnCellMouseMoveButtonHover(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+            bool isBtn = false;
+            try { isBtn = Columns[e.ColumnIndex] is DataGridViewButtonColumn; } catch { }
+
+            var newKey = isBtn ? new CellKey(e.RowIndex, e.ColumnIndex) : new CellKey(-1, -1);
+            if (!_hoverButtonCell.Equals(newKey))
+            {
+                var old = _hoverButtonCell;
+                _hoverButtonCell = newKey;
+
+                if (old.Row >= 0 && old.Col >= 0) InvalidateCell(old.Col, old.Row);
+                if (_hoverButtonCell.Row >= 0 && _hoverButtonCell.Col >= 0) InvalidateCell(_hoverButtonCell.Col, _hoverButtonCell.Row);
+            }
+        }
+
+        private void OnCellMouseLeaveButtonHover(object sender, DataGridViewCellEventArgs e)
+        {
+            if (_hoverButtonCell.Row >= 0 && _hoverButtonCell.Col >= 0)
+            {
+                var old = _hoverButtonCell;
+                _hoverButtonCell = new CellKey(-1, -1);
+                InvalidateCell(old.Col, old.Row);
+            }
+        }
+
+        private void OnMouseDownButtonPress(object sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left) return;
+
+            var hit = HitTest(e.X, e.Y);
+            if (hit.Type != DataGridViewHitTestType.Cell) return;
+
+            if (!(Columns[hit.ColumnIndex] is DataGridViewButtonColumn)) return;
+
+            _pressedButtonCell = new CellKey(hit.RowIndex, hit.ColumnIndex);
+            InvalidateCell(hit.ColumnIndex, hit.RowIndex);
+        }
+
+        private void OnMouseUpButtonPress(object sender, MouseEventArgs e)
+        {
+            if (_pressedButtonCell.Row >= 0 && _pressedButtonCell.Col >= 0)
+            {
+                var old = _pressedButtonCell;
+                _pressedButtonCell = new CellKey(-1, -1);
+                InvalidateCell(old.Col, old.Row);
+            }
         }
     }
 }

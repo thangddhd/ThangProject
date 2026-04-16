@@ -150,4 +150,40 @@ namespace coms.COMMON.ui
         public Color? BackColor { get; set; }
         public Color? ForeColor { get; set; }
     }
+
+    public sealed class ReserveButtonCellStyleNeededEventArgs : EventArgs
+    {
+        public ReserveButtonCellStyleNeededEventArgs(
+            int rowIndex,
+            int columnIndex,
+            object rowData,
+            object value,
+            bool isCurrentCell,
+            bool isReadOnly,
+            DataGridViewButtonColumn buttonColumn)
+        {
+            RowIndex = rowIndex;
+            ColumnIndex = columnIndex;
+            RowData = rowData;
+            Value = value;
+            IsCurrentCell = isCurrentCell;
+            IsReadOnly = isReadOnly;
+            ButtonColumn = buttonColumn;
+        }
+
+        public int RowIndex { get; }
+        public int ColumnIndex { get; }
+        public object RowData { get; }
+        public object Value { get; }
+        public bool IsCurrentCell { get; }
+        public bool IsReadOnly { get; }
+        public DataGridViewButtonColumn ButtonColumn { get; }
+
+        // What parent can control
+        public bool? Visible { get; set; }          // false => visually hide (blank)
+        public string Text { get; set; }            // optional override caption
+        public Color? BackColor { get; set; }       // optional
+        public Color? ForeColor { get; set; }       // optional
+        public bool DisabledStyle { get; set; }     // visual only (click still fires)
+    }
 }
