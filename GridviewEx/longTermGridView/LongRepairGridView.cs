@@ -877,6 +877,15 @@ namespace coms.COMSK.ui.common
             if (IsCellReadOnlyByRule(e.RowIndex, e.ColumnIndex))
                 return;
 
+            // Normalize DBNull/null BEFORE BeginEdit
+            try
+            {
+                var cell = this[e.ColumnIndex, e.RowIndex];
+                if (cell != null && (cell.Value == null || cell.Value == DBNull.Value))
+                    cell.Value = 0L; // or 0, depending on your property type
+            }
+            catch { }
+
             // keep the "permit on double click" behavior (but no longer tied to drag-allowed)
             _editPermit.Add(new CellKey(e.RowIndex, e.ColumnIndex));
 
