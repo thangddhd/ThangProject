@@ -6,6 +6,7 @@ using System.Data;
 using System.Linq;
 using System.Windows.Forms;
 
+using coms.COMMON.ui;
 using coms.COMSK.common;
 using coms.COMSKService;
 
@@ -108,6 +109,21 @@ namespace coms.COMSK.ui.common
 
 		private LongRepairGridView<LongRepairPlanData> _grid;
 		private BindingSource _bs = new BindingSource();
+
+		private const string COL_ConstructionType = "bgcolConstructionType";
+		private const string COL_ConstructionItem = "bgcolConstructionItem";
+		private const string COL_ConstructionCategory = "bgcolConstructionCategory";
+		private const string COL_ConstructionPosition = "bgcolConstructionPosition";
+		private const string COL_ConstructionRegion = "bgcolConstructionRegion";
+		private const string COL_ConstructionSpecification = "bgcolConstructionSpecification";
+		private const string COL_ConstructionDivision = "bgcolConstructionDivision";
+		private const string COL_RepairConstructionContent = "bgcolRepairConstructionContent";
+		private const string COL_SubTotal = "bgcolSubTotal";
+		private const string COL_DatumYear = "bgcolDatumYear";
+		private const string COL_Amount = "bgcolAmount";
+		private const string COL_RepairPeriod = "bgcolRepairPeriod";
+		private const string COL_Unit = "bgcolUnit";
+		private const string COL_EffectedYear = "bgcolEffectedYear";
 		/// <summary>
 		/// データソース
 		/// </summary>
@@ -144,6 +160,9 @@ namespace coms.COMSK.ui.common
 				_bs.DataSource = list;
 				_grid.DataSource = _bs;
 				//BindData();
+
+				// do merge
+				_grid.RebuildMerges();
 
 				this.GetMergedCells();
 			}
@@ -221,13 +240,7 @@ namespace coms.COMSK.ui.common
 				"bgcolRepairConstructionContent"
 			});
 			// No calc rows in testObj by default, so keep null (or set false)
-			var calcTypes = new List<LongRepairPlanData.RowType>() {
-				LongRepairPlanData.RowType.CalcA,
-				LongRepairPlanData.RowType.CalcB,
-				LongRepairPlanData.RowType.CalcC,
-				LongRepairPlanData.RowType.CalcD,
-				LongRepairPlanData.RowType.CalcE
-			};
+			var calcTypes = COMSKCommon.calcTypes();
 			_grid.IsCalcRow = m => m != null && calcTypes.Contains(m.Row);
 
             _grid.CanDragCell = (g, rowIndex, col, model) =>
@@ -251,6 +264,23 @@ namespace coms.COMSK.ui.common
 			// mouse wheel
 			_grid.MouseWheel += Grid_MouseWheel;
 
+			// readonly
+			_grid.CellReadOnlyNeeded += Grid_CellReadOnlyNeeded;
+
+			// format text
+			_grid.CellDisplayTextNeeded += Grid_CellDisplayTextNeeded;
+
+			// cell style
+			_grid.CellStyleNeeded += Grid_CellStyleNeeded;
+
+			// button style
+			_grid.ButtonCellStyleNeeded += Grid_ButtonCellStyleNeeded;
+
+			// editing
+			_grid.CellBeginEditRule += Grid_CellBeginEditRule;
+			_grid.EditingControlRule += Grid_EditingControlRule;
+			_grid.MouseDoubleClick += grid_MouseDoubleClick;
+
 			// freeze
 			FreezeLeftColumns();
 
@@ -264,34 +294,28 @@ namespace coms.COMSK.ui.common
 		private void AddColumnsNonYearly(DataGridView grid)
 		{
 			grid.Columns.Clear();
-			grid.Columns.Add(CreateCol("bgcolConstructionType", "ConstructionTypeName", "工事分類", 60));
-			grid.Columns.Add(CreateCol("bgcolConstructionItem", "ConstructionItemName", "工事項目", 90));
-			grid.Columns.Add(CreateCol("bgcolConstructionCategory", "ConstructionCategoryName", "工事種別", 90));
-			grid.Columns.Add(CreateCol("bgcolConstructionPosition", "ConstructionPositionName", "位置", 90));
-			grid.Columns.Add(CreateCol("bgcolConstructionRegion", "ConstructionRegionName", "部位", 90));
-			grid.Columns.Add(CreateCol("bgcolConstructionSpecification", "ConstructionSpecificationName", "仕様", 90));
-			grid.Columns.Add(CreateCol("bgcolConstructionDivision", "ConstructionDivisionName", "工事区分", 90));
-			grid.Columns.Add(CreateCol("bgcolRepairConstructionContent", "RepairConstructionContentName", "(修繕工事内容)", 100));
-			grid.Columns.Add(CreateCol("bgcolRepairPeriod", "Cycle", "周期", 40));
-			grid.Columns.Add(CreateCol("bgcolRepairPlan", null, "修繕計画", 40));
-			grid.Columns.Add(CreateCol("bgcolHistory", null, "変更履歴", 36));
-			grid.Columns.Add(CreateCol("bgcolRegister", null, "登録", 40));
-			grid.Columns.Add(CreateCol("bgcolAmount", "Amount", "数量", 41));
-			grid.Columns.Add(CreateCol("bgcolUnit", "UnitName", "単位", 40));
-			grid.Columns.Add(CreateCol("bgcolDatumYear", "DatumYear", "周期起算年", 49));
-			grid.Columns.Add(CreateCol("bgcolEffectedYear", "ResultYear", "修繕実施年度", 75));
-			grid.Columns.Add(CreateCol("bgcolSubTotal", "SubTotal", "小計", 75));
-		}
-
-		private DataGridViewColumn CreateCol(string name, string field, string caption, int width)
-		{
-			return new DataGridViewTextBoxColumn()
-			{
-				Name = name,
-				DataPropertyName = field,
-				HeaderText = caption,
-				Width = width
-			};
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolConstructionType", "ConstructionTypeName", "工事分類", 60));
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolConstructionItem", "ConstructionItemName", "工事項目", 90));
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolConstructionCategory", "ConstructionCategoryName", "工事種別", 90));
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolConstructionPosition", "ConstructionPositionName", "位置", 90));
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolConstructionRegion", "ConstructionRegionName", "部位", 90));
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolConstructionSpecification", "ConstructionSpecificationName", "仕様", 90));
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolConstructionDivision", "ConstructionDivisionName", "工事区分", 90));
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolRepairConstructionContent", "RepairConstructionContentName", "(修繕工事内容)", 100));
+			var col = COMSKCommon.CreateColTextNormal("bgcolRepairPeriod", "Cycle", "周期", 40);
+			col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+			grid.Columns.Add(col);
+			grid.Columns.Add(COMSKCommon.CreateColButtonNormal("bgcolRepairPlan", null, "修繕計画", "開く", 40));
+			grid.Columns.Add(COMSKCommon.CreateColButtonNormal("bgcolHistory", null, "変更履歴", "開く", 36));
+			grid.Columns.Add(COMSKCommon.CreateColButtonNormal("bgcolRegister", null, "登録", "開く", 40));
+			col = COMSKCommon.CreateColTextNormal("bgcolAmount", "Amount", "数量", 41);
+			col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+			col.DefaultCellStyle.Format = "N0";
+			grid.Columns.Add(col);
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolUnit", "UnitName", "単位", 40));
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolDatumYear", "DatumYear", "周期起算年", 49));
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolEffectedYear", "ResultYear", "修繕実施年度", 75));
+			grid.Columns.Add(COMSKCommon.CreateColTextNormal("bgcolSubTotal", "SubTotal", "小計", 75));
 		}
 
 		private void FreezeLeftColumns()
@@ -359,7 +383,8 @@ namespace coms.COMSK.ui.common
 		{
 			public bool MergeWithNextRow(DataGridView grid, LongRepairPlanData row, LongRepairPlanData nextRow, string columnName, int rowIndex)
 			{
-				if (row == null || nextRow == null) return false;
+				var calcTypes = COMSKCommon.calcTypes();
+				if (row == null || nextRow == null || calcTypes.Contains(row.Row) || calcTypes.Contains(nextRow.Row)) return false;
 
 				if (columnName == "bgcolConstructionType") return row.ConstructionTypeName == nextRow.ConstructionTypeName;
 				if (columnName == "bgcolConstructionItem") return row.ConstructionItemName == nextRow.ConstructionItemName;
@@ -512,40 +537,30 @@ namespace coms.COMSK.ui.common
 
 		#endregion
 
-		#endregion privateメソッド
+		#endregion privateメソッドecllva
 
 		#region イベント
-		/// <summary>
-		/// グリッドダブルクリックイベント
-		/// </summary>
-		/// <param name="sender">The source of the event.</param>
-		/// <param name="e">The <see cref="System.Windows.Forms.MouseEventArgs"/> instance containing the event data.</param>
-		private void gridcLongtermRepairPlan_MouseDoubleClick(object sender, MouseEventArgs e)
+		private void grid_MouseDoubleClick(object sender, MouseEventArgs e)
 		{
-			// TODO
-			/*try
+			try
 			{
-				//  カーソル位置を取得
-				GridHitInfo hi = gridvLongtermRepairPlan.CalcHitInfo(e.Location) as GridHitInfo;
+				var grid = sender as coms.COMSK.ui.common.LongRepairGridView<LongRepairPlanData>;
+				if (grid == null) return;
 
-				//  セルなら
-				if (hi.HitTest == GridHitTest.RowCell)
-				{
-					//  ドラッグセルなら
-					if ((hi.Column.Tag is string) && (hi.Column.Tag as string == COMSKCommon.TAG_DRAGGABLE_CELL))
-					{
-						//  編集許可
-						hi.Column.OptionsColumn.AllowEdit = true;
-						allowEdit = true;
+				var hit = grid.HitTest(e.X, e.Y);
+				if (hit.Type != DataGridViewHitTestType.Cell || hit.RowIndex < 0 || hit.ColumnIndex < 0)
+					return;
 
-						//  エディタ表示
-						gridvLongtermRepairPlan.ShowEditorByMouse();
-					}
-				}
+				var col = grid.Columns[hit.ColumnIndex];
+				if ((col.Tag as string) != COMSKCommon.TAG_DRAGGABLE_CELL)
+					return;
+
+				allowEdit = true;
+				grid.CurrentCell = grid[hit.ColumnIndex, hit.RowIndex];
+
+				// Do NOT call BeginEdit here; LongRepairGridView.OnCellDoubleClick will do it.
 			}
-			catch (Exception)
-			{
-			}*/
+			catch { }
 		}
 
 		private void Grid_CurrentCellDirtyStateChanged(object sender, EventArgs e)
@@ -598,134 +613,237 @@ namespace coms.COMSK.ui.common
 			}
 		}
 
+		private void Grid_ButtonCellStyleNeeded(object sender, coms.COMMON.ui.ReserveButtonCellStyleNeededEventArgs e)
+        {
+			var obj = e.RowData as LongRepairPlanData;
+			if (obj == null) return;
+
+			if (e.ButtonColumn.Name == "bgcolHistory")
+			{
+				if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
+				{
+					e.Visible = true;
+					e.Text = "開く";
+
+					// red style if has history
+					if (obj.UpdateFlg == COMSKCommon.HAS_HISTORY_FLG_ON || (obj.WorkUpdateReasonList?.Count ?? 0) > 0)
+					{
+						e.BackColor = Color.Red;
+						e.ForeColor = Color.White;
+					}
+					else
+					{
+						e.BackColor = Color.White;
+						e.ForeColor = Color.Black;
+					}
+				}
+				else
+				{
+					e.Visible = false; // hide for non RepairPlan rows
+				}
+			}
+
+			// REPAIR PLAN button column
+			if (e.ButtonColumn.Name == "bgcolRepairPlan")
+			{
+				if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
+				{
+					if (this.result)
+					{
+						e.Visible = true;
+						e.Text = "開く";
+						e.DisabledStyle = true; // visual only
+						e.BackColor = Color.LightGray;
+						e.ForeColor = Color.DarkGray;
+					}
+					else
+					{
+						if (obj.ConstructionSpecificationName == COMSKCommon.REPAIR_HISTORY_GROUP_SPEC_TEXT)
+						{
+							e.Visible = false; // repEmpty
+						}
+						else
+						{
+							e.Visible = true;
+							e.Text = "開く";
+						}
+					}
+				}
+				else
+				{
+					e.Visible = false;
+				}
+			}
+
+			// REGISTER button column
+			if (e.ButtonColumn.Name == "bgcolRegister")
+			{
+				if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
+				{
+					e.Visible = true;
+					e.Text = "開く";
+
+					if (this.result)
+					{
+						e.DisabledStyle = true; // visual only
+						e.BackColor = Color.LightGray;
+						e.ForeColor = Color.DarkGray;
+					}
+				}
+				else
+				{
+					e.Visible = false;
+				}
+			}
+		}
+
 		/// <summary>
 		/// Row Cell のスタイル変更をするタイミングで発生するイベントハンドラ
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
-		private void gridvLongtermRepairPlan_RowCellStyle(object sender, DevExpress.XtraGrid.Views.Grid.RowCellStyleEventArgs e)
+		private void Grid_CellStyleNeeded(object sender, coms.COMMON.ui.ReserveCellStyleNeededEventArgs e)
 		{
-			// TODO
-			/*try
+			try
 			{
-				LongRepairPlanData obj = gridvLongtermRepairPlan.GetRow(e.RowHandle) as LongRepairPlanData;
+				var grid = sender as DataGridView;
+				if (grid == null) return;
 
-				//  行タイプで分岐
+				var obj = e.RowData as LongRepairPlanData;
+				if (obj == null) return;
+
+				// Resolve column
+				DataGridViewColumn col = null;
+				string colName = null;
+				try
+				{
+					if (e.ColumnIndex >= 0 && e.ColumnIndex < grid.Columns.Count)
+					{
+						col = grid.Columns[e.ColumnIndex];
+						colName = col.Name;
+					}
+				}
+				catch { }
+
+				// -----------------------------
+				// 1) RowStyle (row base color)
+				// -----------------------------
+				// Only applies to RepairPlan rows in old code
+				// Priority: UpdateContentList > ModifiedAtLongRepairPlanFlg > ImportFlg
+				Color? baseRowBackColor = null;
+
 				if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
 				{
-					//  * 修繕項目 *
-					if (e.Column == bgcolConstructionType)
+					if (obj.UpdateContentList != null && obj.UpdateContentList.Count > 0)
 					{
-						e.Appearance.BackColor = Color.Silver;
+						baseRowBackColor = COMSKCommon.LONGTERM_REPAIR_PLAN_COLOR_NO_REASON;
 					}
-					else if (e.Column.Equals(bgcolConstructionItem) == true)
+					else if (obj.ModifiedAtLongRepairPlanFlg == COMSKCommon.HAS_HISTORY_FLG_ON)
 					{
-						e.Appearance.BackColor = Color.LightGray;
+						baseRowBackColor = COMSKCommon.LONGTERM_REPAIR_PLAN_COLOR_MODIFIED_AT_LONGTERM_REPAIR_PLAN;
 					}
-					else if ((e.Column == bgcolConstructionCategory) ||
-						(e.Column == bgcolConstructionPosition) ||
-						(e.Column == bgcolConstructionRegion) ||
-						(e.Column == bgcolConstructionSpecification) ||
-						(e.Column == bgcolConstructionDivision) ||
-						(e.Column == bgcolRepairConstructionContent))
+					else if (obj.ImportFlg != COMSKCommon.IMPORT_FLG_NONE)
 					{
-						e.Appearance.BackColor = Color.White;
-					}
-
-					//  ドラッグセルなら
-					if ((e.Column.Tag is string) && (e.Column.Tag as string == COMSKCommon.TAG_DRAGGABLE_CELL))
-					{
-						//  カラムインデックス
-						int columnIndex = gridvLongtermRepairPlan.Columns.IndexOf(e.Column) - DATA_START_COLUMN;
-
-						//  フラグが立っていたら
-						if ((startPeriodIndex + columnIndex) < LongRepairPlanData.VALID_VALUE_COUNT)
+						if (obj.ImportFlg == COMSKCommon.IMPORT_FLG_REPAIR_PLAN)
 						{
-							if (obj.GetDragged(startPeriodIndex + columnIndex) == COMSKCommon.DRAGGED_FLG_ON)
+							baseRowBackColor = COMSKCommon.LONGTERM_REPAIR_PLAN_COLOR_IMPORT_REPAIR_PLAN;
+						}
+						else if (obj.ImportFlg == COMSKCommon.IMPORT_FLG_REPAIR_HISTORY)
+						{
+							baseRowBackColor = COMSKCommon.LONGTERM_REPAIR_PLAN_COLOR_IMPORT_REPAIR_HISTORY;
+						}
+					}
+				}
+
+				// apply base row color first
+				if (baseRowBackColor.HasValue)
+					e.BackColor = baseRowBackColor.Value;
+
+				// ---------------------------------------
+				// 2) RowCellStyle (cell/column overrides)
+				// ---------------------------------------
+				if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
+				{
+					// * 修繕項目 * column-based base colors
+					if (colName == COL_ConstructionType)
+					{
+						e.BackColor = Color.Silver;
+					}
+					else if (colName == COL_ConstructionItem)
+					{
+						e.BackColor = Color.LightGray;
+					}
+					else if (colName == COL_ConstructionCategory ||
+							 colName == COL_ConstructionPosition ||
+							 colName == COL_ConstructionRegion ||
+							 colName == COL_ConstructionSpecification ||
+							 colName == COL_ConstructionDivision ||
+							 colName == COL_RepairConstructionContent)
+					{
+						e.BackColor = Color.White;
+					}
+
+					// ドラッグセルなら (tag check)
+					string tagStr = null;
+					try { tagStr = col != null ? col.Tag as string : null; } catch { }
+
+					if (tagStr == COMSKCommon.TAG_DRAGGABLE_CELL)
+					{
+						// In DevExpress:
+						// columnIndex = grid.Columns.IndexOf(e.Column) - DATA_START_COLUMN;
+						//
+						// In WinForms: use DisplayIndex or Index depending on how you define DATA_START_COLUMN.
+						// If DATA_START_COLUMN was based on visible order, use DisplayIndex.
+						int columnIndex = -1;
+						try
+						{
+							// If you already have DATA_START_COLUMN defined as "first year column display index"
+							// then DisplayIndex is closer to DevExpress "visible order".
+							columnIndex = (col != null ? col.DisplayIndex : -1) - DATA_START_COLUMN;
+						}
+						catch { }
+
+						if (columnIndex >= 0)
+						{
+							int valueIndex = startPeriodIndex + columnIndex;
+							if (valueIndex < LongRepairPlanData.VALID_VALUE_COUNT)
 							{
-								//  色を変える
-								e.Appearance.BackColor = COMSKCommon.LONGTERM_REPAIR_PLAN_COLOR_DRAGGED;
+								if (obj.GetDragged(valueIndex) == COMSKCommon.DRAGGED_FLG_ON)
+								{
+									e.BackColor = COMSKCommon.LONGTERM_REPAIR_PLAN_COLOR_DRAGGED;
+								}
 							}
 						}
 					}
 				}
-				else if (obj.Row == LongRepairPlanData.RowType.CalcA || obj.Row == LongRepairPlanData.RowType.CalcB || obj.Row == LongRepairPlanData.RowType.CalcC)
+				else if (obj.Row == LongRepairPlanData.RowType.CalcA ||
+						 obj.Row == LongRepairPlanData.RowType.CalcB ||
+						 obj.Row == LongRepairPlanData.RowType.CalcC)
 				{
-					e.Appearance.BackColor = Color.LightSeaGreen;
+					e.BackColor = Color.LightSeaGreen;
 				}
-				else if (obj.Row == LongRepairPlanData.RowType.CalcD || obj.Row == LongRepairPlanData.RowType.CalcE)
+				else if (obj.Row == LongRepairPlanData.RowType.CalcD ||
+						 obj.Row == LongRepairPlanData.RowType.CalcE)
 				{
-					e.Appearance.BackColor = Color.LightGreen;
-				}
-
-				//  ヘルパがあれば
-				if (dndHelper != null)
-				{
-					//  選択範囲内なら
-					if (dndHelper.IsInSelection(e))
-					{
-						//  色を変える
-						e.Appearance.BackColor = Color.Lavender;
-					}
+					e.BackColor = Color.LightGreen;
 				}
 
+				// -----------------------------------------
+				// 3) Selection range highlight (Lavender)
+				// -----------------------------------------
+				// DevExpress had dndHelper.IsInSelection(e) => Lavender
+				// In LongRepairGridView, selection highlight is already applied in OnCellFormatting,
+				// which runs BEFORE this event.
+				//
+				// If you still want to force Lavender here too, you can do:
+				// if (SomeSelectionHelper != null && SomeSelectionHelper.IsInSelection(e.RowIndex, e.ColumnIndex)) e.BackColor = Color.Lavender;
+				//
+				// But if you rely on the built-in highlight in LongRepairGridView, DO NOTHING here.
 			}
 			catch (Exception ex)
 			{
 				MessageBox.Show(ex.Message + "\n\n" + ex.StackTrace, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-			}*/
-		}
-
-		/// <summary>
-		/// 行のデザイン変更時に呼び出されるイベント
-		/// </summary>
-		/// <param name="sender">The source of the event.</param>
-		/// <param name="e">The <see cref="DevExpress.XtraGrid.Views.Grid.RowStyleEventArgs"/> instance containing the event data.</param>
-		private void gridvLongtermRepairPlan_RowStyle(object sender, DevExpress.XtraGrid.Views.Grid.RowStyleEventArgs e)
-		{
-			// TODO
-			/*try
-			{
-				//  対象のレコードを取得
-				LongRepairPlanData obj = gridvLongtermRepairPlan.GetRow(e.RowHandle) as LongRepairPlanData;
-				if (obj != null)
-				{
-					//  データタイプが RepairPlan なら
-					if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
-					{
-						//  色を決定 (if 文が上にいくほど優先順位が高い)
-
-						//  変更点があるなら
-						if (obj.UpdateContentList.Count > 0)
-						{
-							e.Appearance.BackColor = COMSKCommon.LONGTERM_REPAIR_PLAN_COLOR_NO_REASON;
-
-						}
-						//  長計側で変更されているか
-						else if (obj.ModifiedAtLongRepairPlanFlg == COMSKCommon.HAS_HISTORY_FLG_ON)
-						{
-							e.Appearance.BackColor = COMSKCommon.LONGTERM_REPAIR_PLAN_COLOR_MODIFIED_AT_LONGTERM_REPAIR_PLAN;
-						}
-						//  取り込みフラグを見る
-						else if (obj.ImportFlg != COMSKCommon.IMPORT_FLG_NONE)
-						{
-							if (obj.ImportFlg == COMSKCommon.IMPORT_FLG_REPAIR_PLAN)
-							{
-								e.Appearance.BackColor = COMSKCommon.LONGTERM_REPAIR_PLAN_COLOR_IMPORT_REPAIR_PLAN;
-							}
-							else if (obj.ImportFlg == COMSKCommon.IMPORT_FLG_REPAIR_HISTORY)
-							{
-								e.Appearance.BackColor = COMSKCommon.LONGTERM_REPAIR_PLAN_COLOR_IMPORT_REPAIR_HISTORY;
-							}
-						}
-					}
-
-				}
-
 			}
-			catch (Exception ex)
-			{
-			}*/
 		}
 
 		/// <summary>
@@ -823,88 +941,100 @@ namespace coms.COMSK.ui.common
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
-		private void gridvLongtermRepairPlan_CustomColumnDisplayText(object sender, DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs e)
+		private void Grid_CellDisplayTextNeeded(object sender, coms.COMMON.ui.ReserveCellDisplayTextNeededEventArgs e)
 		{
-			// TODO
-			/*try
+			try
 			{
-				// Rowデータが予期していないデータ型の場合は何もしない。
-				LongRepairPlanData obj = gridvLongtermRepairPlan.GetRow(e.RowHandle) as LongRepairPlanData;
+				var grid = sender as coms.COMSK.ui.common.LongRepairGridView<LongRepairPlanData>;
+				if (grid == null) return;
 
-				//  行タイプで分岐
+				// Rowデータが予期していないデータ型の場合は何もしない。
+				LongRepairPlanData obj = e.RowData as LongRepairPlanData;
+				if (obj == null) return;
+
+				// current column name
+				string colName = null;
+				try
+				{
+					colName = (e.ColumnIndex >= 0 && e.ColumnIndex < grid.Columns.Count)
+						? grid.Columns[e.ColumnIndex].Name
+						: null;
+				}
+				catch { }
+
+				// 行タイプで分岐
 				if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
 				{
-					//  カラムで分岐
-					if (e.Column == bgcolDatumYear)
+					// カラムで分岐
+					if (colName == COL_DatumYear)
 					{
-						//  基準年
-						if (obj.DatumYear == 0)
-						{
-							e.DisplayText = string.Empty;
-						}
-						else
-						{
-							e.DisplayText = obj.DatumYear.ToString();
-						}
+						// 基準年
+						e.DisplayText = (obj.DatumYear == 0) ? string.Empty : obj.DatumYear.ToString();
+						return;
 					}
-					else if (e.Column.Equals(bgcolSubTotal) == false &&
-						//e.Column.Equals(bgcolConsumptionTax) == false &&
-						//e.Column.Equals(bgcolTotal) == false &&
-						e.Column.Equals(bgcolAmount) == false &&
-						e.Column != bgcolRepairPeriod)
+
+					// else if (e.Column.Equals(bgcolSubTotal) == false && e.Column.Equals(bgcolAmount) == false && e.Column != bgcolRepairPeriod)
+					if (colName != COL_SubTotal &&
+						colName != COL_Amount &&
+						colName != COL_RepairPeriod)
 					{
 						// 対象行か確認
-						if (e.Value is long)
+						if (e.Value is long vLong)
 						{
-							e.DisplayText = COMSKCommon.ConvertToLongRepairPlanText(this.MntPlanConst.ViewUnit, (long)e.Value);
+							e.DisplayText = COMSKCommon.ConvertToLongRepairPlanText(this.MntPlanConst.ViewUnit, vLong);
+							return;
+						}
+						// If sometimes the value comes as int, you can optionally support it:
+						if (e.Value is int vInt)
+						{
+							e.DisplayText = COMSKCommon.ConvertToLongRepairPlanText(this.MntPlanConst.ViewUnit, (long)vInt);
+							return;
 						}
 					}
-					else if (e.Column == bgcolAmount)
+					else if (colName == COL_Amount)
 					{
 						if (obj.Amount == double.MinValue)
 						{
 							e.DisplayText = string.Empty;
+							return;
 						}
 					}
-					else if (e.Column == bgcolRepairPeriod)
+					else if (colName == COL_RepairPeriod)
 					{
 						if (obj.Cycle == int.MinValue)
 						{
 							e.DisplayText = string.Empty;
+							return;
 						}
 					}
 				}
 				else if (obj.Row == LongRepairPlanData.RowType.CalcA ||
-					obj.Row == LongRepairPlanData.RowType.CalcB ||
-					obj.Row == LongRepairPlanData.RowType.CalcC ||
-					obj.Row == LongRepairPlanData.RowType.CalcD ||
-					obj.Row == LongRepairPlanData.RowType.CalcE
-					)
+						 obj.Row == LongRepairPlanData.RowType.CalcB ||
+						 obj.Row == LongRepairPlanData.RowType.CalcC ||
+						 obj.Row == LongRepairPlanData.RowType.CalcD ||
+						 obj.Row == LongRepairPlanData.RowType.CalcE)
 				{
 					string dispText = null;
 
-					//  特定のカラムは無視
-					if (e.Column == bgcolRepairPeriod ||
-						e.Column == bgcolAmount ||
-						e.Column == bgcolUnit ||
-						e.Column == bgcolEffectedYear ||
-						e.Column == bgcolDatumYear)
+					// 特定のカラムは無視
+					if (colName == COL_RepairPeriod ||
+						colName == COL_Amount ||
+						colName == COL_Unit ||
+						colName == COL_EffectedYear ||
+						colName == COL_DatumYear)
 					{
 						dispText = string.Empty;
 					}
-					else if (e.Column == bgcolConstructionType)
+					else if (colName == COL_ConstructionType)
 					{
 						dispText = e.Value as string;
 					}
 
-					//  想定累計列なら
+					// 想定累計列なら (CalcE)
 					if (obj.Row == LongRepairPlanData.RowType.CalcE)
 					{
-						//  小計 / 消費税 / 累計は空欄
-						//if (e.Column == bgcolSubTotal ||
-						//    e.Column == bgcolConsumptionTax ||
-						//    e.Column == bgcolTotal)
-						if (e.Column == bgcolSubTotal)
+						// 小計は空欄
+						if (colName == COL_SubTotal)
 						{
 							dispText = string.Empty;
 						}
@@ -916,7 +1046,11 @@ namespace coms.COMSK.ui.common
 						{
 							if (e.Value is int || e.Value is long)
 							{
-								dispText = COMSKCommon.ConvertToLongRepairPlanText(MntPlanConst.ViewUnit, (long)e.Value);
+								long v = (e.Value is long)
+									? (long)e.Value
+									: (long)(int)e.Value;
+
+								dispText = COMSKCommon.ConvertToLongRepairPlanText(MntPlanConst.ViewUnit, v);
 							}
 
 							if (dispText == string.Empty)
@@ -931,175 +1065,13 @@ namespace coms.COMSK.ui.common
 					}
 
 					e.DisplayText = dispText;
-				}
-
-			}
-			catch (Exception ex)
-			{
-				MessageBox.Show(ex.Message + "\n\n" + ex.StackTrace, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-			}*/
-		}
-
-		/// <summary>
-		/// Cellの編集をさせたくない場合に設定処理を行うタイミングに発生するイベント
-		/// </summary>
-		/// <param name="sender"></param>
-		/// <param name="e"></param>
-		private void gridvLongtermRepairPlan_ShowingEditor(object sender, CancelEventArgs e)
-		{
-			// TODO
-			/*try { this.selectedRow = gridvLongtermRepairPlan.GetRow(gridvLongtermRepairPlan.FocusedRowHandle) as LongRepairPlanData; }
-			catch (Exception ex) { this.selectedRow = null; }
-			try
-			{
-				// Rowデータが予期していないデータ型の場合は何もしない。
-				LongRepairPlanData obj = gridvLongtermRepairPlan.GetRow(gridvLongtermRepairPlan.FocusedRowHandle) as LongRepairPlanData;
-
-				//  デフォルトは編集不可
-				e.Cancel = true;
-
-				//  カラム
-				DevExpress.XtraGrid.Columns.GridColumn gc = gridvLongtermRepairPlan.FocusedColumn;
-
-				//  実績年度列なら
-				if (gc == bgcolEffectedYear || gc == bgcolDatumYear)
-				{
-					//  履歴実績取込がなされていなければ
-                    //if (obj.ImportFlg != COMSKCommon.IMPORT_FLG_REPAIR_HISTORY)
-                    //{
-                    //    //  編集可能
-                    //    e.Cancel = false;
-                    //}
-                    e.Cancel = false;
-				}
-				//  ドラッグカラムなら
-				else if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
-				{
-					//  編集許可なら
-					if (allowEdit == true)
-					{
-						//  編集可能
-						e.Cancel = false;
-
-						//  フラグをクリア
-						allowEdit = false;
-					}
-				}
-
-				//  編集可能なら
-				if (e.Cancel == false)
-				{
-					//  ドラッグセルなら
-					if ((gc.Tag is string) && (gc.Tag as string == COMSKCommon.TAG_DRAGGABLE_CELL))
-					{
-						//  セルの値を取得
-						object value = gridvLongtermRepairPlan.GetRowCellValue(gridvLongtermRepairPlan.FocusedRowHandle,
-							gridvLongtermRepairPlan.FocusedColumn);
-
-						long currValue = 0;
-						if (value != null)
-						{
-							currValue = long.Parse(value.ToString());
-						}
-
-						//  変更前値をセット
-						obj.PrevValue = currValue;
-					}
+					return;
 				}
 			}
 			catch (Exception ex)
 			{
-				e.Cancel = true;
 				MessageBox.Show(ex.Message + "\n\n" + ex.StackTrace, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-			}*/
-		}
-
-		/// <summary>
-		/// セルにリポジトリコントロールを動的に設定する場合に使用するイベント
-		/// </summary>
-		/// <param name="sender"></param>
-		/// <param name="e"></param>
-		private void gridvLongtermRepairPlan_CustomRowCellEdit(object sender, DevExpress.XtraGrid.Views.Grid.CustomRowCellEditEventArgs e)
-		{
-			// TODO
-            /*try
-			{
-				// Rowデータが予期していないデータ型の場合は何もしない。
-				LongRepairPlanData obj = gridvLongtermRepairPlan.GetRow(e.RowHandle) as LongRepairPlanData;
-
-				// 対象列か確認
-				DevExpress.XtraEditors.Repository.RepositoryItem repItem = null;
-
-				if (e.Column == bgcolHistory)
-				{
-					if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
-					{
-						//  変更履歴があれば赤、それ以外は通常ボタン
-						if (obj.UpdateFlg == COMSKCommon.HAS_HISTORY_FLG_ON || obj.WorkUpdateReasonList.Count > 0)
-						{
-							repItem = repBtnOpenRed;
-						}
-						else
-						{
-							repItem = repBtnOpen;
-						}
-					}
-				}
-
-
-				if (e.Column == bgcolRepairPlan)
-				{
-					if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
-					{
-						if (this.result)
-						{
-							repItem = repBtnDisable;
-						}
-						else
-						{
-							//  修繕履歴集約行でなければ
-							if (obj.ConstructionSpecificationName == COMSKCommon.REPAIR_HISTORY_GROUP_SPEC_TEXT)
-							{
-								repItem = repEmpty;
-							}
-							else
-							{
-								repItem = repBtnOpen;
-							}
-						}
-					}
-				}
-				else if (e.Column == bgcolRegister)
-				{
-					 if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
-					{
-						if (!this.result)
-						{
-							repItem = repBtnOpen;
-						}
-						else
-						{
-							repItem = repBtnDisable;
-						}
-					}
-					
-				}
-
-
-				if (repItem != null)
-				{
-					if (e.RepositoryItem.Equals(repItem) == false)
-					{
-						e.RepositoryItem = repItem;
-					}
-				}
-
 			}
-			catch (Exception ex)
-			{
-				MessageBox.Show(ex.Message + "\n\n" + ex.StackTrace, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-			}*/
-
 		}
 
 		/// <summary>
@@ -1141,38 +1113,6 @@ namespace coms.COMSK.ui.common
 		{
 			COMSKCommon.CustomDrawBandHeader(e, this.originalAccountStartPeriodIdx);
 		}
-
-		/// <summary>
-		/// エディタ表示完了後イベント
-		/// </summary>
-		/// <param name="sender">The source of the event.</param>
-		/// <param name="e">The <see cref="System.EventArgs"/> instance containing the event data.</param>
-		private void gridvLongtermRepairPlan_ShownEditor(object sender, EventArgs e)
-		{
-			// TODO
-			/*try
-			{
-				LongRepairPlanData obj = gridvLongtermRepairPlan.GetRow(gridvLongtermRepairPlan.FocusedRowHandle) as LongRepairPlanData;
-
-				if (obj != null)
-				{
-					DevExpress.XtraGrid.Columns.GridColumn gc = gridvLongtermRepairPlan.FocusedColumn;
-					if ((gc.Tag is string) && (gc.Tag as string == COMSKCommon.TAG_DRAGGABLE_CELL))
-					{
-						int focusedColumnIndex = gridvLongtermRepairPlan.Columns.IndexOf(gridvLongtermRepairPlan.FocusedColumn);
-						int index = focusedColumnIndex - DATA_START_COLUMN + startPeriodIndex;
-						if (obj.GetValue(index) == 0)
-						{
-							gridvLongtermRepairPlan.EditingValue = string.Empty;
-						}
-					}
-				}
-			}
-			catch (Exception)
-			{
-			}*/
-		}
-
 
 		/// <summary>
 		/// ドラッグドロップ完了
@@ -1265,6 +1205,194 @@ namespace coms.COMSK.ui.common
 			{
 				XtraGridUtil.DoScroll(this._grid, e);
 				((HandledMouseEventArgs)e).Handled = true;
+			}
+		}
+
+		private void Grid_CellReadOnlyNeeded(object sender, coms.COMMON.ui.ReserveCellReadOnlyNeededEventArgs e)
+		{
+			var readonlyCols = new List<string>
+			{
+				"bgcolConstructionType",
+				"bgcolConstructionItem",
+				"bgcolConstructionCategory",
+				"bgcolConstructionPosition",
+
+				"bgcolConstructionRegion",
+				"bgcolConstructionSpecification",
+				"bgcolConstructionDivision",
+				"bgcolRepairConstructionContent",
+
+				"bgcolRepairPeriod",
+				"bgcolRepairPlan",
+				"bgcolHistory",
+				"bgcolRegister",
+
+				"bgcolAmount",
+				"bgcolUnit",
+			};
+			if (e.ColumnIndex >= 0)
+            {
+				DataGridViewColumn col = _grid.Columns[e.ColumnIndex];
+				if (readonlyCols.Contains(col.Name))
+				{
+					e.ReadOnly = true;
+				}
+                else
+                {
+					var calcTypes = COMSKCommon.calcTypes();
+					LongRepairPlanData obj = e.RowData as LongRepairPlanData;
+					if (calcTypes.Contains(obj.Row)) e.ReadOnly = true;
+				}
+			}
+		}
+
+		private void Grid_CellBeginEditRule(object sender, coms.COMMON.ui.ReserveCellBeginEditEventArgs e)
+        {
+			try
+			{
+				DataGridViewColumn col2 = _grid.Columns[e.ColumnIndex];
+				// normalize before DataGridView creates the editing control
+				if (col2 != null && (col2.Tag as string) == COMSKCommon.TAG_DRAGGABLE_CELL)
+				{
+					var cell = _grid.Rows[e.RowIndex].Cells[e.ColumnIndex];
+
+					if (cell.Value == null || cell.Value == DBNull.Value)
+					{
+						// choose the safe default for your model
+						cell.Value = 0L;
+					}
+				}
+
+				var grid = sender as coms.COMSK.ui.common.LongRepairGridView<LongRepairPlanData>;
+				if (grid == null)
+					return;
+
+				// Like: selectedRow = gridvLongtermRepairPlan.GetRow(FocusedRowHandle)
+				try
+				{
+					this.selectedRow = e.RowData as LongRepairPlanData;
+				}
+				catch
+				{
+					this.selectedRow = null;
+				}
+
+				// Rowデータが予期していないデータ型の場合は何もしない。
+				LongRepairPlanData obj = e.RowData as LongRepairPlanData;
+				if (obj == null)
+				{
+					e.Cancel = true;
+					return;
+				}
+
+				// Default: 編集不可
+				e.Cancel = true;
+
+				// Column name
+				string colName = null;
+				DataGridViewColumn col = null;
+				try
+				{
+					if (e.ColumnIndex >= 0 && e.ColumnIndex < grid.Columns.Count)
+					{
+						col = grid.Columns[e.ColumnIndex];
+						colName = col.Name;
+					}
+				}
+				catch { }
+
+				// 実績年度列なら (EffectedYear / DatumYear) => allow edit
+				if (colName == COL_EffectedYear || colName == COL_DatumYear)
+				{
+					e.Cancel = false;
+				}
+				// ドラッグカラムなら (RepairPlan row + allowEdit flag)
+				else if (obj.Row == LongRepairPlanData.RowType.RepairPlan)
+				{
+					e.Cancel = false;
+				}
+
+				// If editing is allowed, and it's a draggable cell, store PrevValue
+				if (e.Cancel == false)
+				{
+					string tagStr = null;
+					try { tagStr = col != null ? col.Tag as string : null; } catch { }
+
+					if (tagStr == COMSKCommon.TAG_DRAGGABLE_CELL)
+					{
+						object value = null;
+						try
+						{
+							// WinForms equivalent of GetRowCellValue(FocusedRowHandle, FocusedColumn)
+							value = grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Value;
+						}
+						catch { value = null; }
+
+						long currValue = 0;
+						if (value != null)
+						{
+							long.TryParse(Convert.ToString(value), out currValue);
+						}
+
+						obj.PrevValue = currValue;
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				e.Cancel = true;
+				MessageBox.Show(ex.Message + "\n\n" + ex.StackTrace, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+			}
+		}
+
+		private void Grid_EditingControlRule(object sender, coms.COMMON.ui.ReserveEditingControlShowingEventArgs e)
+		{
+			try
+			{
+				var grid = sender as coms.COMSK.ui.common.LongRepairGridView<LongRepairPlanData>;
+				if (grid == null) return;
+
+				var obj = e.RowData as LongRepairPlanData;
+				if (obj == null) return;
+
+				if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+				// Column + tag check (draggable cell)
+				DataGridViewColumn col = null;
+				try { col = grid.Columns[e.ColumnIndex]; } catch { col = null; }
+
+				string tagStr = null;
+				try { tagStr = col != null ? col.Tag as string : null; } catch { }
+
+				if (tagStr != COMSKCommon.TAG_DRAGGABLE_CELL)
+					return;
+
+				int focusedColumnIndex = -1;
+				try
+				{
+					focusedColumnIndex = col != null ? col.DisplayIndex : e.ColumnIndex;
+				}
+				catch { focusedColumnIndex = e.ColumnIndex; }
+
+				int index = focusedColumnIndex - DATA_START_COLUMN + startPeriodIndex;
+
+				if (index >= 0)
+				{
+					if (obj.GetValue(index) == 0)
+					{
+						if (e.TextBox != null)
+						{
+							e.TextBox.Text = string.Empty;
+							e.TextBox.SelectionStart = 0;
+							e.TextBox.SelectionLength = 0;
+						}
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				var kkk = 1;
+				// keep same behavior: swallow
 			}
 		}
 		#endregion
