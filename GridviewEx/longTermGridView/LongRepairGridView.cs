@@ -945,14 +945,10 @@ namespace coms.COMSK.ui.common
             {
                 try
                 {
-                    var raw = this[colIndex, rowIndex].Value;
-                    tb.Text = raw == null ? string.Empty : Convert.ToString(raw);
-                    tb.SelectionStart = tb.TextLength;
-                    tb.SelectionLength = 0;
+                    tb.SelectionStart = 0;
+                    tb.SelectionLength = tb.TextLength;
                 }
-                catch (Exception)
-                {
-                }
+                catch { }
             }
 
             if (EditingControlRule != null)
