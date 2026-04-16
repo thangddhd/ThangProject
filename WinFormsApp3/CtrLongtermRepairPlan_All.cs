@@ -279,7 +279,7 @@ namespace coms.COMSK.ui.common
 			// editing
 			_grid.CellBeginEditRule += Grid_CellBeginEditRule;
 			_grid.EditingControlRule += Grid_EditingControlRule;
-			_grid.MouseDoubleClick += grid_MouseDoubleClick;
+			//_grid.MouseDoubleClick += grid_MouseDoubleClick;
 
 			// freeze
 			FreezeLeftColumns();
