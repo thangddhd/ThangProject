@@ -1230,15 +1230,82 @@ namespace coms.COMSK.ui.common
 
                 Font font = cell.Font ?? ColumnHeadersDefaultCellStyle.Font ?? Font;
 
-                TextRenderer.DrawText(
+                DrawHeaderTextExplicitLines(
                     e.Graphics,
                     cell.Text ?? "",
                     font,
-                    Rectangle.Inflate(bandRect, -2, -2),
                     cell.ForeColor,
-                    TextFormatFlags.HorizontalCenter |
-                    TextFormatFlags.VerticalCenter |
-                    TextFormatFlags.WordBreak);
+                    bandRect,
+                    center: true);
+            }
+        }
+
+        private static void DrawHeaderTextExplicitLines(
+            Graphics g,
+            string text,
+            Font font,
+            Color foreColor,
+            Rectangle bounds,
+            bool center)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            if (bounds.Width <= 0 || bounds.Height <= 0) return;
+
+            // padding
+            Rectangle r = Rectangle.Inflate(bounds, -2, -2);
+            if (r.Width <= 0 || r.Height <= 0) return;
+
+            // explicit lines only (no auto wrap)
+            string[] lines = text.Replace("\r\n", "\n").Split('\n');
+
+            int lineHeight = TextRenderer.MeasureText(
+                g,
+                "Ag",
+                font,
+                new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Height;
+
+            if (lineHeight <= 0) lineHeight = font.Height;
+            if (lineHeight <= 0) return;
+
+            int maxLinesByHeight = Math.Max(1, r.Height / lineHeight);
+            int visibleLines = Math.Min(lines.Length, maxLinesByHeight);
+            bool truncatedByHeight = (lines.Length > visibleLines);
+
+            // Vertically center the entire visible block
+            int blockHeight = visibleLines * lineHeight;
+            int startY = r.Top + Math.Max(0, (r.Height - blockHeight) / 2);
+
+            TextFormatFlags flagsBase =
+                TextFormatFlags.SingleLine |
+                TextFormatFlags.NoPadding |
+                TextFormatFlags.PreserveGraphicsClipping |
+                TextFormatFlags.VerticalCenter |      // vertical center per-line rect
+                TextFormatFlags.EndEllipsis;          // ellipsis if width not enough
+
+            flagsBase |= center ? TextFormatFlags.HorizontalCenter : TextFormatFlags.Left;
+
+            for (int i = 0; i < visibleLines; i++)
+            {
+                bool isLastVisibleLine = (i == visibleLines - 1);
+
+                Rectangle lineRect = new Rectangle(
+                    r.Left,
+                    startY + i * lineHeight,
+                    r.Width,
+                    lineHeight);
+
+                string lineText = lines[i] ?? string.Empty;
+
+                // If height is truncated, force a visual hint on the last shown line.
+                // EndEllipsis only triggers when width is tight, so we append '…' in this case.
+                if (truncatedByHeight && isLastVisibleLine)
+                {
+                    if (!lineText.EndsWith("…"))
+                        lineText += "…";
+                }
+
+                TextRenderer.DrawText(g, lineText, font, lineRect, foreColor, flagsBase);
             }
         }
 
