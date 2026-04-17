@@ -975,6 +975,9 @@ namespace coms.COMSK.ui.common
 
         private void OnMouseDownDrag(object sender, MouseEventArgs e)
         {
+            // Do not start drag selection/move while editing (allows textbox mouse selection)
+            if (IsCurrentCellInEditMode) return;
+
             if (e.Button != MouseButtons.Left) return;
             if (Control.ModifierKeys != Keys.None) return;
 
@@ -1009,6 +1012,8 @@ namespace coms.COMSK.ui.common
 
         private void OnMouseMoveDrag(object sender, MouseEventArgs e)
         {
+            if (IsCurrentCellInEditMode) return;
+
             if (!_dragging) return;
             if ((Control.MouseButtons & MouseButtons.Left) == 0) return;
 
@@ -1118,6 +1123,8 @@ namespace coms.COMSK.ui.common
 
         private void OnMouseUpDrag(object sender, MouseEventArgs e)
         {
+            if (IsCurrentCellInEditMode) return;
+
             if (!_dragging) return;
 
             _dragging = false;
