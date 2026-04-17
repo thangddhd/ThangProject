@@ -8,7 +8,7 @@ using System.Text;
 using System.Windows.Forms;
 
 using coms.COMMON;
-using coms.COMSK.ui.common;
+using coms.COMMON.ui;
 using coms.COMMONService;
 using coms.COMSKService;
 using coms.COMSK.common;
@@ -1193,15 +1193,27 @@ namespace coms.COMSK.ui
 		{
 			try
 			{
-				int rate = this.zoomValue.HasValue ? this.zoomValue.Value : 100;
-				var keyCtr = xtraTabControl_LongRepairPlan.SelectedTabPage.Controls[0].Name;
-				bool processByRecreatedYearly = this.dictRecreatedYearlyProcessed[keyCtr];
+				// WinForms版
+				// xtraTabControl_LongRepairPlan.SelectedTabPage -> tabControl1.SelectedTab
+				var selected = this.tabControl1.SelectedTab;
+				if (selected == null) return;
 
-				if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_All)
+				int rate = this.zoomValue.HasValue ? this.zoomValue.Value : 100;
+
+				// DevExpress: SelectedTabPage.Controls[0].Name
+				string keyCtr = null;
+				if (selected.Controls.Count > 0 && selected.Controls[0] != null)
+					keyCtr = selected.Controls[0].Name;
+
+				bool processByRecreatedYearly = false;
+				if (!string.IsNullOrEmpty(keyCtr) && this.dictRecreatedYearlyProcessed.ContainsKey(keyCtr))
+					processByRecreatedYearly = this.dictRecreatedYearlyProcessed[keyCtr];
+
+				if (selected == this.xtraTabPage_All2)
 				{
 					ctrLongtermPlan_All.RefreshData();
 					if (tabChanged)
-                    {
+					{
 						ctrLongtermPlan_All.ClearSelectedRow();
 						if (this.zoomValue.HasValue)
 						{
@@ -1209,7 +1221,7 @@ namespace coms.COMSK.ui
 						}
 					}
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_Total)
+				else if (selected == this.xtraTabPage_Total2)
 				{
 					ctrLongtermPlan_Total.RefreshData();
 					if (this.zoomValue.HasValue && tabChanged)
@@ -1217,11 +1229,11 @@ namespace coms.COMSK.ui
 						ctrLongtermPlan_Total.SetZoom(rate, processByRecreatedYearly);
 					}
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_TempConstruction)
+				else if (selected == this.xtraTabPage_TempConstruction2)
 				{
 					ctrLongtermPlan_Temp.RefreshData();
 					if (tabChanged)
-                    {
+					{
 						ctrLongtermPlan_Temp.ClearSelectedRow();
 						if (this.zoomValue.HasValue)
 						{
@@ -1229,11 +1241,11 @@ namespace coms.COMSK.ui
 						}
 					}
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_Building)
+				else if (selected == this.xtraTabPage_Building2)
 				{
 					ctrLongtermPlan_B.RefreshData();
 					if (tabChanged)
-                    {
+					{
 						ctrLongtermPlan_B.ClearSelectedRow();
 						if (this.zoomValue.HasValue)
 						{
@@ -1241,11 +1253,11 @@ namespace coms.COMSK.ui
 						}
 					}
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_Equipment)
+				else if (selected == this.xtraTabPage_Equipment2)
 				{
 					ctrLongtermPlan_E.RefreshData();
 					if (tabChanged)
-                    {
+					{
 						ctrLongtermPlan_E.ClearSelectedRow();
 						if (this.zoomValue.HasValue)
 						{
@@ -1253,11 +1265,11 @@ namespace coms.COMSK.ui
 						}
 					}
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_OutwardAppearance)
+				else if (selected == this.xtraTabPage_OutwardAppearance2)
 				{
 					ctrLongtermPlan_Out.RefreshData();
 					if (tabChanged)
-                    {
+					{
 						ctrLongtermPlan_Out.ClearSelectedRow();
 						if (this.zoomValue.HasValue)
 						{
@@ -1265,11 +1277,11 @@ namespace coms.COMSK.ui
 						}
 					}
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_Others)
+				else if (selected == this.xtraTabPage_Others2)
 				{
 					ctrLongtermPlan_Others.RefreshData();
 					if (tabChanged)
-                    {
+					{
 						ctrLongtermPlan_Others.ClearSelectedRow();
 						if (this.zoomValue.HasValue)
 						{
@@ -1278,7 +1290,8 @@ namespace coms.COMSK.ui
 					}
 				}
 
-				if (!string.IsNullOrEmpty(keyCtr)) this.UpdateDictRecreatedYearlyProcessed(keyCtr, false);
+				if (!string.IsNullOrEmpty(keyCtr))
+					this.UpdateDictRecreatedYearlyProcessed(keyCtr, false);
 			}
 			catch (Exception)
 			{
@@ -2280,6 +2293,22 @@ namespace coms.COMSK.ui
 			frm.ShowDialog();
 		}
 
+		private int GetTrueYearlyIdx(DataGridView sender, int colIdx)
+        {
+			int colYearStartLongAll = 17;
+			int colYearStartLongB = 16;
+			if (sender.Parent == null) return colIdx;
+
+			if (sender.Parent.Name == "ctrLongtermPlan_All")
+            {
+				return colIdx - colYearStartLongAll;
+			}
+			else
+            {
+				return colIdx - colYearStartLongB;
+			}
+		}
+
 		/// <summary>
 		/// ドラッグ完了イベント
 		/// </summary>
@@ -2287,86 +2316,79 @@ namespace coms.COMSK.ui
 		/// <param name="e">The <see cref="coms.COMSK.common.DragCompletedEventArgs"/> instance containing the event data.</param>
 		private void ctrLongtermPlan_DragCompleted(object sender, RowCellsDragEventArgs e)
 		{
-			//Diem add: https://reci.backlog.jp/view/MJC_DEV-233
-			if (this.LongRepairPlan.IntensiveFlg == "0010")//集約
-			{
+			if (this.LongRepairPlan.IntensiveFlg == "0010") // 集約
 				return;
-			}
-			//  カーソル位置を取得
+
+			var grid = sender as DataGridView;
+			if (grid == null) return;
+
+			var fromValueIndex = GetTrueYearlyIdx(grid, e.FromColumnIndex);
+			var toValueIndex = GetTrueYearlyIdx(grid, e.ToColumnIndex);
+
+			// Cursor position
 			Point cursorPos = Cursor.Position;
 
-			//  会計期
-			int startIndex = this.TermInfoAccountPeriodIndex + e.FromColumnIndex;
-			int endIndex = this.TermInfoAccountPeriodIndex + e.ToColumnIndex;
+			// Account period indexes (same logic as old code but with valueIndex)
+			int startIndex = this.TermInfoAccountPeriodIndex + fromValueIndex;
+			int endIndex = this.TermInfoAccountPeriodIndex + toValueIndex;
+
 			int startPeriod = LongRepairPlan.TermInfo[startIndex].Term;
 			int endPeriod = LongRepairPlan.TermInfo[endIndex].Term;
 
-			//  フォームを表示
+			// Show popup
 			K300030024 frmPopup = new K300030024();
 			frmPopup.Location = new Point(cursorPos.X - frmPopup.Size.Width, cursorPos.Y);
 			frmPopup.MoveStartAccountYear = startPeriod;
 			frmPopup.MoveEndAccountYear = endPeriod;
 			frmPopup.Show();
+
 			frmPopup.FormClosed += (object sender2, FormClosedEventArgs e2) =>
 			{
-				//  OK で閉じられたら
-				if (frmPopup.PopupResult == true)
+				if (frmPopup.PopupResult != true) return;
+
+				try
 				{
-					//  実際に移動
-					try
+					// New args stores DataList as IReadOnlyList<object>
+					var dataLst = e.DataList?.OfType<LongRepairPlanData>().ToList() ?? new List<LongRepairPlanData>();
+
+					// Reset PrevValue to 0 before move
+					foreach (var data in dataLst)
+						data.PrevValue = 0;
+
+					int startIndexAccount = AccountPeriodIndex + fromValueIndex;
+					int endIndexAccount = AccountPeriodIndex + toValueIndex;
+
+					MoveCells(dataLst, startIndexAccount, endIndexAccount, frmPopup.UpdateLator);
+
+					DeleteIsOnTopData(dataLst);
+					errorMsg = "";
+					Recalc();
+
+					string updateContent = COMSKCommon.GetUpdateContent_Drag(startPeriod, endPeriod, frmPopup.UpdateLator);
+					long insertUserPid = Helper.loginUserInfo.Pid;
+
+					foreach (var data in dataLst)
 					{
-						//  e.DataList 内の LongRepairPlanData の PrevValue を 0 にしておく
-						//  実際に移動された行の PrevValue には 1 が設定される
-						foreach (LongRepairPlanData data in e.DataList)
+						if (data.PrevValue != 0)
 						{
-							data.PrevValue = 0;
-						}
-
-						//  値を移動
-						int startIndexAccount = AccountPeriodIndex + e.FromColumnIndex;
-						int endIndexAccount = AccountPeriodIndex + e.ToColumnIndex;
-						var dtl = e.DataList as List<LongRepairPlanData>;
-						MoveCells(dtl, startIndexAccount, endIndexAccount, frmPopup.UpdateLator);
-
-						//  子工事を削除
-						DeleteIsOnTopData(dtl);
-                        errorMsg = ""; //周期再計算後はエラーメッセージ不要
-						//  再計算
-						Recalc();
-
-						//  変更内容を追加
-						string updateContent = COMSKCommon.GetUpdateContent_Drag(startPeriod, endPeriod, frmPopup.UpdateLator);
-						long insertUserPid = Helper.loginUserInfo.Pid;
-						foreach (LongRepairPlanData data in e.DataList)
-						{
-							//  移動されていたら
-							if (data.PrevValue != 0)
+							data.UpdateContentList.Add(new KumiaiLongRepairPlanDetailUpdateContent()
 							{
-								//  変更内容を追加
-								data.UpdateContentList.Add(new KumiaiLongRepairPlanDetailUpdateContent()
-								{
-									Pid = long.MinValue,
-									UpdateContent = updateContent,
-									InsertUserMstPid = insertUserPid,
-									InsertDateTime = DateTime.Now,
-								});
+								Pid = long.MinValue,
+								UpdateContent = updateContent,
+								InsertUserMstPid = insertUserPid,
+								InsertDateTime = DateTime.Now,
+							});
 
-								//  長計で変更フラグも立てる
-								data.ModifiedAtLongRepairPlanFlg = COMSKCommon.HAS_HISTORY_FLG_ON;
-							}
+							data.ModifiedAtLongRepairPlanFlg = COMSKCommon.HAS_HISTORY_FLG_ON;
 						}
-
-						//  変更フラグ ON
-						modifyFlg = true;
-                        
-
-					}
-					catch (Exception ex)
-					{
-						Helper.WriteLog(ex);
-						MessageBox.Show(ex.Message, Constant.ERROR_TITLE, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
 					}
 
+					modifyFlg = true;
+				}
+				catch (Exception ex)
+				{
+					Helper.WriteLog(ex);
+					MessageBox.Show(ex.Message, Constant.ERROR_TITLE, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
 				}
 			};
 		}
@@ -2412,41 +2434,55 @@ namespace coms.COMSK.ui
 		}
 
 		private void DoZoomSubTab()
-        {
+		{
 			try
 			{
-				var keyCtr = xtraTabControl_LongRepairPlan.SelectedTabPage.Controls[0].Name;
-				bool reCreatedYearly = this.dictRecreatedYearlyProcessed[keyCtr];
+				// WinForms: SelectedTab (TabPage)
+				var selected = this.tabControl1.SelectedTab;
+				if (selected == null) return;
 
-				if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_All)
+				// DevExpress: SelectedTabPage.Controls[0].Name
+				// WinForms: SelectedTab.Controls[0].Name
+				string keyCtr = null;
+				if (selected.Controls.Count > 0 && selected.Controls[0] != null)
+					keyCtr = selected.Controls[0].Name;
+
+				bool reCreatedYearly = false;
+				if (!string.IsNullOrEmpty(keyCtr) && this.dictRecreatedYearlyProcessed.ContainsKey(keyCtr))
+					reCreatedYearly = this.dictRecreatedYearlyProcessed[keyCtr];
+
+				// same branch logic, but compare with WinForms TabPages
+				if (selected == this.xtraTabPage_All2)
 				{
 					ctrLongtermPlan_All.SetZoom(this.zoomValue.Value, reCreatedYearly);
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_Total)
+				else if (selected == this.xtraTabPage_Total2)
 				{
 					ctrLongtermPlan_Total.SetZoom(this.zoomValue.Value, reCreatedYearly);
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_TempConstruction)
+				else if (selected == this.xtraTabPage_TempConstruction2)
 				{
 					ctrLongtermPlan_Temp.SetZoom(this.zoomValue.Value, reCreatedYearly);
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_Building)
+				else if (selected == this.xtraTabPage_Building2)
 				{
 					ctrLongtermPlan_B.SetZoom(this.zoomValue.Value, reCreatedYearly);
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_Equipment)
+				else if (selected == this.xtraTabPage_Equipment2)
 				{
 					ctrLongtermPlan_E.SetZoom(this.zoomValue.Value, reCreatedYearly);
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_OutwardAppearance)
+				else if (selected == this.xtraTabPage_OutwardAppearance2)
 				{
 					ctrLongtermPlan_Out.SetZoom(this.zoomValue.Value, reCreatedYearly);
 				}
-				else if (xtraTabControl_LongRepairPlan.SelectedTabPage == xtraTabPage_Others)
+				else if (selected == this.xtraTabPage_Others2)
 				{
 					ctrLongtermPlan_Others.SetZoom(this.zoomValue.Value, reCreatedYearly);
 				}
-				if (!string.IsNullOrEmpty(keyCtr)) this.UpdateDictRecreatedYearlyProcessed(keyCtr, false);
+
+				if (!string.IsNullOrEmpty(keyCtr))
+					this.UpdateDictRecreatedYearlyProcessed(keyCtr, false);
 			}
 			catch (Exception)
 			{
@@ -2544,5 +2580,10 @@ namespace coms.COMSK.ui
 
 		}
         #endregion
+
+        private void tabControl1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+			RefreshCurrentTab(true);
+		}
     }
 }
