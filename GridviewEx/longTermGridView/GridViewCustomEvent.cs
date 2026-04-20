@@ -140,6 +140,8 @@ namespace coms.COMMON.ui
             IsReadOnly = isReadOnly;
         }
 
+        public bool DisableFocusedStyle { get; set; }
+
         public int RowIndex { get; }
         public int ColumnIndex { get; }
         public object RowData { get; }

@@ -140,7 +140,7 @@
                                   CurrentCell.ColumnIndex == e.ColumnIndex);
 
             bool isReadOnly = IsCellReadOnlyEffective(e.RowIndex, e.ColumnIndex);
-
+            bool disableSelectingCelStyle = false;
             if (CellStyleNeeded != null)
             {
                 var styleArgs = new ReserveCellStyleNeededEventArgs(
@@ -155,9 +155,16 @@
 
                 if (styleArgs.BackColor.HasValue) e.CellStyle.BackColor = styleArgs.BackColor.Value;
                 if (styleArgs.ForeColor.HasValue) e.CellStyle.ForeColor = styleArgs.ForeColor.Value;
+                disableSelectingCelStyle = styleArgs.DisableFocusedStyle;
+                // in this case selection style will apply cell format needed style
+                if (disableSelectingCelStyle)
+                {
+                    if (styleArgs.BackColor.HasValue) e.CellStyle.SelectionBackColor = styleArgs.BackColor.Value;
+                    if (styleArgs.ForeColor.HasValue) e.CellStyle.SelectionForeColor = styleArgs.ForeColor.Value;
+                }
             }
 
-            if (isCurrentCell)
+            if (isCurrentCell && disableSelectingCelStyle == false)
             {
                 Color? focusBack = null;
                 Color? focusFore = null;
