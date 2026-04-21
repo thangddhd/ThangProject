@@ -27,6 +27,8 @@
             CellPainting += ReserveGridView_CellPainting;
             CellBeginEdit += ReserveGridView_CellBeginEdit;
             EditingControlShowing += ReserveGridView_EditingControlShowing;
+            CellParsing += ReserveGridView_CellParsing;
+            DataError += ReserveGridView_DataError;
         }
 
         private ReserveGridViewMode _mode = ReserveGridViewMode.Editable;
@@ -264,6 +266,52 @@
                 flags);
 
             e.Handled = true;
+        }
+
+        private void ReserveGridView_CellParsing(object sender, DataGridViewCellParsingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (IsCellReadOnlyEffective(e.RowIndex, e.ColumnIndex)) return;
+
+            var col = this.Columns[e.ColumnIndex];
+
+            // determine numeric type (ValueType can be null)
+            var valueType = col.ValueType ?? this.Rows[e.RowIndex].Cells[e.ColumnIndex].ValueType;
+
+            bool isNumeric =
+                valueType == typeof(int) || valueType == typeof(long) ||
+                valueType == typeof(float) || valueType == typeof(double) ||
+                valueType == typeof(decimal);
+
+            if (!isNumeric) return;
+
+            string text = Convert.ToString(e.Value)?.Trim() ?? "";
+
+            // empty OR non-number => force 0
+            // (TryParse rules can be customized for comma, etc.)
+            bool ok =
+                (valueType == typeof(int) && int.TryParse(text, out _)) ||
+                (valueType == typeof(long) && long.TryParse(text, out _)) ||
+                (valueType == typeof(float) && float.TryParse(text, out _)) ||
+                (valueType == typeof(double) && double.TryParse(text, out _)) ||
+                (valueType == typeof(decimal) && decimal.TryParse(text, out _));
+
+            if (text.Length == 0 || !ok)
+            {
+                if (valueType == typeof(int)) e.Value = 0;
+                else if (valueType == typeof(long)) e.Value = 0L;
+                else if (valueType == typeof(float)) e.Value = 0f;
+                else if (valueType == typeof(double)) e.Value = 0d;
+                else if (valueType == typeof(decimal)) e.Value = 0m;
+
+                e.ParsingApplied = true;   // THIS is the key
+            }
+        }
+
+        private void ReserveGridView_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            // suppress the default DataGridView error dialog
+            e.ThrowException = false;
         }
 
         protected override void OnColumnAdded(DataGridViewColumnEventArgs e)
