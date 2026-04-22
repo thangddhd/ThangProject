@@ -296,6 +296,23 @@ namespace coms.COMSK.ui.common
 
 			//  データソース設定 -- no show invisible
 			gcData30Period.DataSource = dataList.Where(item => item.Visible).ToList();
+
+			try
+			{
+				// IMPORTANT: ensure no editing control is active, otherwise CellPainting may skip repaint
+				gcData30Period.EndEdit(DataGridViewDataErrorContexts.Commit);
+				gcData30Period.CancelEdit();
+			}
+			catch { }
+
+			// Reset current cell (prevents edit-mode state/cached painting)
+			gcData30Period.CurrentCell = null;
+			gcData30Period.ClearSelection();
+
+			// now force full repaint
+			gcData30Period.Invalidate(true);
+			gcData30Period.Update();
+
 			#endregion
 
 			//  計算ヘルパにプロパティを設定
@@ -342,7 +359,8 @@ namespace coms.COMSK.ui.common
 			CreateLabels(draft);
 
 			//  データリフレッシュ
-			gcData30Period.Refresh();
+			//gcData30Period.Refresh();
+			//COMSKCommon.ForceRepaintGrid(gcData30Period);
 
 			//  名前変更イベントを飛ばす
 			if (DraftNameChanged != null)
@@ -679,14 +697,11 @@ namespace coms.COMSK.ui.common
 		{
 			try
 			{
-				int rowHandle = e.RowIndex;
-
-				Data30Period data = dataList[rowHandle];
 				int columnIndex = e.ColumnIndex;
-				if (columnIndex <= 1)
-                {
-					var bvv = 1;
-                }
+				int rowHandle = e.RowIndex;
+				var grid = sender as DataGridView;
+				var data = grid?.Rows[rowHandle]?.DataBoundItem as Data30Period;
+				if (data == null) return;
 				string detailCode = DetailSummary[rowHandle].ReservePlanDetailCode;
 
 				if (columnIndex < COMSKCommon.MAX_VISIBLE_YEAR)
