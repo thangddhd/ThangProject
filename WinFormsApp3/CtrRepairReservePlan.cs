@@ -6,10 +6,6 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
-using DevExpress.XtraGrid;
-using DevExpress.XtraGrid.Views.Grid;
-using DevExpress.XtraGrid.Views.Base;
-using DevExpress.XtraGrid.Views.Grid.ViewInfo;
 
 using coms.COMSKService;
 using coms.COMSK.common;
@@ -120,6 +116,7 @@ namespace coms.COMSK.ui.common
 			COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_LUMPSUM_COST
 		};
 		private string calcShortBefore = "";
+		bool isArea = false;
 		#endregion
 
 		#region プロパティ
@@ -243,7 +240,7 @@ namespace coms.COMSK.ui.common
 		/// <param name="kumiaiRepairReservePlanDraft">The kumiai repair reserve plan draft.</param>
 		public void SetDraft(KumiaiLongRepairPlan kumiaiLongRepairPlan, Data30Period totalRepairCost, KumiaiRepairReservePlanDetailSummary[] summary, KumiaiRepairReservePlanDraft draft)
 		{
-			bool isArea = kumiaiLongRepairPlan.MaintenancePlanInfo.CalcDivision == COMSKCommon.COMSK_LONG_REPAIR_PLAN_CALC_DIVISION_AREA;
+			isArea = kumiaiLongRepairPlan.MaintenancePlanInfo.CalcDivision == COMSKCommon.COMSK_LONG_REPAIR_PLAN_CALC_DIVISION_AREA;
 			//  フィールドセット
 			#region フィールドセット
 			//  案サマリを設定
@@ -297,8 +294,8 @@ namespace coms.COMSK.ui.common
 				dataList.Add(data);
 			}
 
-			//  データソース設定
-			gcData30Period.DataSource = dataList;
+			//  データソース設定 -- no show invisible
+			gcData30Period.DataSource = dataList.Where(item => item.Visible).ToList();
 			#endregion
 
 			//  計算ヘルパにプロパティを設定
@@ -345,7 +342,7 @@ namespace coms.COMSK.ui.common
 			CreateLabels(draft);
 
 			//  データリフレッシュ
-			gvData30Period.RefreshData();
+			gcData30Period.Refresh();
 
 			//  名前変更イベントを飛ばす
 			if (DraftNameChanged != null)
@@ -485,7 +482,7 @@ namespace coms.COMSK.ui.common
 			calculator.CalcAllReverseMonthly(fromIndex, toIndex);
 
 			//  データを更新
-			gvData30Period.RefreshData();
+			gcData30Period.Refresh();
 
             //  累計変更着火
             FireTotalReserveChanged();
@@ -519,7 +516,7 @@ namespace coms.COMSK.ui.common
 			calculator.CalcAllReverseLumpsum(index);
 
 			//  データを更新
-			gvData30Period.RefreshData();
+			gcData30Period.Refresh();
 
 			//  累計変更着火
 			FireTotalReserveChanged();
@@ -596,13 +593,13 @@ namespace coms.COMSK.ui.common
 			ViewMode = viewMode;
 
 			//  カラムを設定
-			foreach (DevExpress.XtraGrid.Columns.GridColumn gc in gvData30Period.Columns)
+			foreach (DataGridViewColumn gc in gcData30Period.Columns)
 			{
-				gc.AppearanceCell.Font = font;
+				gc.DefaultCellStyle.Font = font;
 			}
 
 			//  更新
-			gvData30Period.Invalidate();
+			gcData30Period.Invalidate();
 		}
 
 		/// <summary>
@@ -617,7 +614,7 @@ namespace coms.COMSK.ui.common
 			//  セット
 			double sumColumnDoubleWidth = 0;
 			int sumColumnIntWidth = 0;
-			foreach (DevExpress.XtraGrid.Columns.GridColumn gc in gvData30Period.Columns)
+			foreach (DataGridViewColumn gc in gcData30Period.Columns)
 			{
 				//  幅を計算
 				sumColumnDoubleWidth += columnWidth;
@@ -630,10 +627,12 @@ namespace coms.COMSK.ui.common
 				sumColumnIntWidth += width;
 			}
 
-			gcData30Period.Width = gvData30Period.Columns
-				.Cast<DevExpress.XtraGrid.Columns.GridColumn>()
+			gcData30Period.Width = gcData30Period.Columns
+				.Cast<DataGridViewColumn>()
 				.Where(col => col.Visible)
-				.Sum(col => col.VisibleWidth) + gvData30Period.IndicatorWidth + calculator.CalcReserveWidthDiff(currVM, true);
+				// TODO
+				//.Sum(col => col.VisibleWidth) + gcData30Period.IndicatorWidth + calculator.CalcReserveWidthDiff(currVM, true);
+				.Sum(col => col.Width) + calculator.CalcReserveWidthDiff(currVM, true);
 
 			// グリッドの左パネル
 			this.tableLayoutRoot.ColumnStyles[0].Width = calculator.CalcReserveLeftPartWidth(chartWidth, columnWidth);
@@ -676,22 +675,26 @@ namespace coms.COMSK.ui.common
 		/// </summary>
 		/// <param name="sender">The source of the event.</param>
 		/// <param name="e">The <see cref="DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs"/> instance containing the event data.</param>
-		private void gvData30Period_CustomColumnDisplayText(object sender, DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs e)
+		private void gcData30Period_CellDisplayTextNeeded(object sender, coms.COMMON.ui.ReserveCellDisplayTextNeededEventArgs e)
 		{
 			try
 			{
-				int rowHandle = gvData30Period.ViewRowHandleToDataSourceIndex(e.RowHandle);
+				int rowHandle = e.RowIndex;
 
 				Data30Period data = dataList[rowHandle];
-				int columnIndex = gvData30Period.Columns.IndexOf(e.Column);
+				int columnIndex = e.ColumnIndex;
+				if (columnIndex <= 1)
+                {
+					var bvv = 1;
+                }
 				string detailCode = DetailSummary[rowHandle].ReservePlanDetailCode;
 
 				if (columnIndex < COMSKCommon.MAX_VISIBLE_YEAR)
 				{
 					double val = data.GetValue(columnIndex);
 
-                    //専有面積チェック
-                    bool isAppropriationArea = (data.Name.IndexOf("㎡") >= 0) ? true : false;
+					//専有面積チェック
+					bool isAppropriationArea = (data.Name.IndexOf("㎡") >= 0) ? true : false;
 
 					//  特定の行なら
 					if ((detailCode != COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_MONTH_RESERVE_COST) &&
@@ -712,14 +715,14 @@ namespace coms.COMSK.ui.common
 						if (data.DisplayFormat == Data30Period.Format.Yen)
 						{
 							//  \ フォーマット
-                            if (isAppropriationArea)
-                            {
-                                str = string.Format("{0}", val);
-                            }
-                            else
-                            {
-                                str = string.Format("{0:F02}", val);
-                            }
+							if (isAppropriationArea)
+							{
+								str = string.Format("{0}", val);
+							}
+							else
+							{
+								str = string.Format("{0:F02}", val);
+							}
 						}
 					}
 					//  フルモードなら
@@ -734,14 +737,14 @@ namespace coms.COMSK.ui.common
 						else if (data.DisplayFormat == Data30Period.Format.Yen)
 						{
 							//  \ フォーマット
-                            if (isAppropriationArea)
-                            {
-                                str = string.Format("\\{0}", val);
-                            }
-                            else
-                            {
-                                str = string.Format("\\{0:F02}", val);
-                            }
+							if (isAppropriationArea)
+							{
+								str = string.Format("\\{0}", val);
+							}
+							else
+							{
+								str = string.Format("\\{0:F02}", val);
+							}
 						}
 					}
 
@@ -755,101 +758,16 @@ namespace coms.COMSK.ui.common
 		}
 
 		/// <summary>
-		/// セルの値変更イベント
-		/// </summary>
-		/// <param name="sender">The source of the event.</param>
-		/// <param name="e">The <see cref="DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs"/> instance containing the event data.</param>
-		private void gvData30Period_CellValueChanged(object sender, DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e)
-		{
-            preSender = sender;
-            preEvent = e;
-			try
-			{
-				//  現在行の種別を取得
-				int rowHandle = gvData30Period.ViewRowHandleToDataSourceIndex(e.RowHandle);
-				string detailCode = DetailSummary[rowHandle].ReservePlanDetailCode;
-                
-				//  行番号を取得
-				int index = gvData30Period.Columns.IndexOf(e.Column);
-                if (preMode) ((coms.COMSK.common.Data30Period)(gvData30Period.GetRow(rowHandle))).SetValue(index, preVal);
-                else preVal = ((coms.COMSK.common.Data30Period)(gvData30Period.GetRow(rowHandle))).GetValue(index);
-				if (!preMode) this.SetValueChangedCells(detailCode, e.RowHandle, index);
-				//  コードで分岐
-				List<string> onlyCalcUpperCodes = new List<string>()
-				{
-					COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_TRANSFAR_COST,
-					COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_IN_COST,
-					COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_COST,
-					COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_TRANSFAR_COST
-				};
-
-				// 年度内住戸積立金
-				if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST)
-                {
-					calculator.SetLastYearHouseReserveCost(index);
-				}
-				bool onlyCalcUpper = detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST;
-				// その他収入等変更時に年度内住戸積立金既に変更した場合その金額で年度内修繕積立金～積立金累計がその変更した年度内住戸積立金値で計算します
-				if (!onlyCalcUpper)
-                {
-					onlyCalcUpper = this.IsValueChangedCell(COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST, index);
-					onlyCalcUpper = onlyCalcUpper && onlyCalcUpperCodes.Contains(detailCode);
-				}
-				if (onlyCalcUpper)
-				{
-					//  積立金累計から逆計算
-					calculator.CalcAllUpperYearHouseReserveCost(index);
-
-					//  再表示
-					gvData30Period.RefreshData();
-
-					//  イベント着火
-					FireTotalReserveChanged();
-				}
-				else
-				{
-					// 次年度の年度内住戸積立金が手入力した場合再計算しません
-					var nextYearAmountChanged = this.IsValueChangedCell(COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST, index + 1);
-					var currYearAmountChanged = this.IsValueChangedCell(COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST, index);
-
-					// 【住戸月額積立金単価】を変更する場合年度内住戸積立金が必ず再計算する
-					if (currYearAmountChanged)
-                    {
-						if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_MONTH_RESERVE_COST || detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_SHARED_MONTH_RESERVE_COST)
-                        {
-							currYearAmountChanged = false;
-							this.ResetChangedCells(new List<string>() { COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST }, new List<int>() { index });
-						}
-					}
-
-					//  全て再計算
-					//calculator.CalcTotal(index);
-					calculator.CalcReserveByValueChanged(index, currYearAmountChanged, !(nextYearAmountChanged));
-
-					//  再表示
-					gvData30Period.RefreshData();
-
-					//  チャート更新
-					FireTotalReserveChanged();
-				}
-                
-			}
-			catch (Exception)
-			{
-			}
-		}
-
-		/// <summary>
 		/// セル編集可否設定イベント
 		/// </summary>
 		/// <param name="sender">The source of the event.</param>
 		/// <param name="e">The <see cref="System.ComponentModel.CancelEventArgs"/> instance containing the event data.</param>
-		private void gvData30Period_ShowingEditor(object sender, CancelEventArgs e)
+		private void gcData30Period_CellBeginEditRule(object sender, coms.COMMON.ui.ReserveCellBeginEditEventArgs e)
 		{
 			try
 			{
 				//  行番号
-				int rowHandle = gvData30Period.ViewRowHandleToDataSourceIndex(gvData30Period.FocusedRowHandle);
+				int rowHandle = e.RowIndex;
 
 				//  サマリから編集可能か調べる
 				if (DetailSummary[rowHandle].Editable == true)
@@ -864,16 +782,17 @@ namespace coms.COMSK.ui.common
 			catch (Exception)
 			{
 			}
-
 		}
 
-		private void gvData30Period_ShownEditor(object sender, EventArgs e)
+		private void gcData30Period_EditingControlRule(object sender, coms.COMMON.ui.ReserveEditingControlShowingEventArgs e)
 		{
 			try
 			{
-				var editorCtr = gvData30Period.ActiveEditor as DevExpress.XtraEditors.TextEdit;
-				editorCtr.Properties.MaxLength = 14;
-				editorCtr.ImeMode = ImeMode.Disable;
+				if (e.TextBox != null)
+				{
+					e.TextBox.MaxLength = 14;
+					e.TextBox.ImeMode = ImeMode.Disable;
+				}
 			}
 			catch (Exception)
 			{
@@ -885,16 +804,16 @@ namespace coms.COMSK.ui.common
 		/// </summary>
 		/// <param name="sender">The source of the event.</param>
 		/// <param name="e">The <see cref="DevExpress.XtraGrid.Views.Grid.RowCellStyleEventArgs"/> instance containing the event data.</param>
-		private void gvData30Period_RowCellStyle(object sender, DevExpress.XtraGrid.Views.Grid.RowCellStyleEventArgs e)
+		private void gcData30Period_CellStyleNeeded(object sender, coms.COMMON.ui.ReserveCellStyleNeededEventArgs e)
 		{
 			try
 			{
 				//  カラムインデックスを取得
-				int columnIndex = gvData30Period.Columns.IndexOf(e.Column);
+				int columnIndex = e.ColumnIndex;
 				if (0 <= columnIndex && columnIndex < COMSKCommon.MAX_VISIBLE_YEAR)
 				{
 					//  明細コードを取得
-					int rowHandle = gvData30Period.ViewRowHandleToDataSourceIndex(e.RowHandle);
+					int rowHandle = e.RowIndex;
 					string detailCode = DetailSummary[rowHandle].ReservePlanDetailCode;
 
 					//  明細ごとに分岐
@@ -906,202 +825,98 @@ namespace coms.COMSK.ui.common
 						//  負の数なら
 						if (diffConstructionCost < 0)
 						{
-							e.Appearance.BackColor = Color.Salmon;
+							e.BackColor = Color.Salmon;
 						}
 						//  工事費差額最低額を割っていたら
 						else if (diffConstructionCost < minDiffRepairCost)
 						{
-							e.Appearance.BackColor = Color.Yellow;
+							e.BackColor = Color.Yellow;
 						}
 					}
 					else if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_TOTAL_RESERVE_COST)
 					{
 						if (calculator.TotalReserveCost.GetValue(columnIndex) < 0)
 						{
-							e.Appearance.BackColor = Color.Salmon;
+							e.BackColor = Color.Salmon;
 						}
 					}
 					else if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST)
 					{
 						if (calculator.YearHouseReserveCost.GetValue(columnIndex) < 0)
 						{
-							e.Appearance.BackColor = Color.Salmon;
+							e.BackColor = Color.Salmon;
 						}
 					}
 					else if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_REPAIR_RESERVE_COST)
 					{
 						if (calculator.YearHouseReserveCost.GetValue(columnIndex) < 0)
 						{
-							e.Appearance.BackColor = Color.Salmon;
+							e.BackColor = Color.Salmon;
 						}
 					}
 					else if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_TRANSFAR_COST)
 					{
 						if (calculator.TransfarCost.GetValue(columnIndex) < 0)
 						{
-							e.Appearance.ForeColor = Color.Red;
+							e.ForeColor = Color.Red;
 						}
 					}
 					else if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_MONTH_RESERVE_COST)
 					{
 						if (calculator.HouseMonthReserveCost.GetValue(columnIndex) < 0)
 						{
-							e.Appearance.ForeColor = Color.Red;
+							e.ForeColor = Color.Red;
 						}
 					}
 					else if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_SHARED_MONTH_RESERVE_COST)
 					{
 						if (calculator.HouseSharedMonthReserveCost.GetValue(columnIndex) < 0)
 						{
-							e.Appearance.ForeColor = Color.Red;
+							e.ForeColor = Color.Red;
 						}
 					}
 					else if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_LUMPSUM_COST)
 					{
 						if (calculator.HouseLumpsumCost.GetValue(columnIndex) < 0)
 						{
-							e.Appearance.ForeColor = Color.Red;
+							e.ForeColor = Color.Red;
 						}
 					}
 					else if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_SHARED_LUMPSUM_COST)
 					{
 						if (calculator.HouseSharedLumpsumCost.GetValue(columnIndex) < 0)
 						{
-							e.Appearance.ForeColor = Color.Red;
+							e.ForeColor = Color.Red;
 						}
 					}
 					else if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_IN_COST)
 					{
 						if (calculator.OtherInCost.GetValue(columnIndex) < 0)
 						{
-							e.Appearance.ForeColor = Color.Red;
+							e.ForeColor = Color.Red;
 						}
 					}
 					else if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_COST)
 					{
 						if (calculator.OtherOutCost.GetValue(columnIndex) < 0)
 						{
-							e.Appearance.ForeColor = Color.Red;
+							e.ForeColor = Color.Red;
 						}
 					}
 					else if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_TRANSFAR_COST)
 					{
 						if (calculator.OtherOutTransfarCost.GetValue(columnIndex) < 0)
 						{
-							e.Appearance.ForeColor = Color.Red;
+							e.ForeColor = Color.Red;
 						}
 					}
 
 					var cellValChanged = this.IsValueChangedCell(detailCode, columnIndex);
-					if (cellValChanged) e.Appearance.BackColor = Color.LightGoldenrodYellow;
+					if (cellValChanged) e.BackColor = Color.LightGoldenrodYellow;
 				}
 			}
 			catch (Exception)
 			{
-			}
-		}
-
-		/// <summary>
-		/// セルカスタム描画
-		/// </summary>
-		/// <param name="sender">The source of the event.</param>
-		/// <param name="e">The <see cref="DevExpress.XtraGrid.Views.Base.RowCellCustomDrawEventArgs"/> instance containing the event data.</param>
-		private void gvData30Period_CustomDrawCell(object sender, DevExpress.XtraGrid.Views.Base.RowCellCustomDrawEventArgs e)
-		{
-			int kPadding = 0;
-			Rectangle bounds = e.Bounds;
-
-			//  フォーカスありなら
-			if (e.Column == gvData30Period.FocusedColumn && e.RowHandle == gvData30Period.FocusedRowHandle)
-			{
-				Brush br = new SolidBrush(Color.FromArgb(224, 224, 255));
-				e.Graphics.FillRectangle(br, e.Bounds);
-			}
-			else
-			{
-				e.Appearance.FillRectangle(e.Cache, e.Bounds);
-			}
-
-			bounds.X += kPadding;
-			bounds.Width -= 2 * kPadding;
-			bounds.Y += kPadding;
-			bounds.Height -= 2 * kPadding;
-			e.Cache.DrawString(e.DisplayText,
-				e.Appearance.GetFont(),
-				e.Appearance.GetForeBrush(e.Cache),
-				bounds,
-				e.Appearance.GetStringFormat());
-		
-			//  OK
-			e.Handled = true;
-
-		}
-
-		/// <summary>
-		/// 行表示フィルタ
-		/// </summary>
-		/// <param name="sender">The source of the event.</param>
-		/// <param name="e">The <see cref="DevExpress.XtraGrid.Views.Base.RowFilterEventArgs"/> instance containing the event data.</param>
-		private void gvData30Period_CustomRowFilter(object sender, DevExpress.XtraGrid.Views.Base.RowFilterEventArgs e)
-		{
-			try
-			{
-                Data30Period data = dataList[e.ListSourceRow];
-                if (data.Visible == false)
-                {
-                    e.Visible = false;
-                    e.Handled = true;
-                }
-			}
-			catch (Exception)
-			{
-			}
-		}
-
-		/// <summary>
-		/// グリッド右クリックイベント
-		/// </summary>
-		/// <param name="sender">The source of the event.</param>
-		/// <param name="e">The <see cref="System.Windows.Forms.MouseEventArgs"/> instance containing the event data.</param>
-		private void gcData30Period_MouseClick(object sender, MouseEventArgs e)
-		{
-			//  右ボタンなら
-			if (e.Button == MouseButtons.Right)
-			{
-				//  ヒットテスト
-				GridHitInfo hi = gvData30Period.CalcHitInfo(e.Location) as GridHitInfo;
-
-				//  セルなら
-				if (hi.HitTest == GridHitTest.RowCell)
-				{
-					//  行番号
-					int rowHandle = gvData30Period.ViewRowHandleToDataSourceIndex(gvData30Period.FocusedRowHandle);
-
-					//  明細コードを取得
-					string detailCode = DetailSummary[rowHandle].ReservePlanDetailCode;
-
-					//  特定の明細行なら
-					if ((detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_TRANSFAR_COST) ||
-						(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_IN_COST) ||
-						(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_COST) ||
-						(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_TRANSFAR_COST) ||
-						(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST) ||
-						(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_MONTH_RESERVE_COST) ||
-						(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_LUMPSUM_COST) ||
-						(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_SHARED_MONTH_RESERVE_COST) ||
-						(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_SHARED_LUMPSUM_COST))
-					{
-						//  コード、行番号、開始カラム番号を保存
-						applyDetailCode = detailCode;
-						applyRowIndex = rowHandle;
-						applyColumnIndex = gvData30Period.Columns.IndexOf(gvData30Period.FocusedColumn);
-
-						//  コンテキストメニュー表示
-						Point pos = gcData30Period.PointToScreen(e.Location);
-						cmsApply.Show(pos);
-					}
-
-				}
 			}
 		}
 
@@ -1113,7 +928,7 @@ namespace coms.COMSK.ui.common
 		private void CtrRepairReservePlan_SizeChanged(object sender, EventArgs e)
 		{
 			//  推奨高さ
-			int height = gvData30Period.RowHeight * gvData30Period.RowCount + 10 +
+			int height = gcData30Period.RowTemplate.Height * gcData30Period.RowCount + 10 +
 				(panelHeader.Margin.Top + panelHeader.Margin.Bottom + 80);
 
 			//  幅はタブの分を差し引いて計算
@@ -1200,7 +1015,7 @@ namespace coms.COMSK.ui.common
 			calculator.CalcAuto(info, this.valueChangedCells);
 
 			//  画面を更新
-			gvData30Period.RefreshData();
+			gcData30Period.Refresh();
 
 			//  累計変更着火
 			FireTotalReserveChanged();
@@ -1268,7 +1083,7 @@ namespace coms.COMSK.ui.common
 			}
 
 			//  データ更新
-			gvData30Period.RefreshData();
+			gcData30Period.Refresh();
 
 			//  累計変更着火
 			FireTotalReserveChanged();
@@ -1575,9 +1390,9 @@ namespace coms.COMSK.ui.common
             {
                 this.btnRecalc_Click(preSender,preEvent);
             }
-            else if (preSender is DevExpress.XtraGrid.Views.Grid.GridView)
+            else if (preSender is DataGridView)
             {
-                this.gvData30Period_CellValueChanged(preSender, (DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs)preEvent);
+                this.gcData30Period_CellValueChanged(preSender, (DataGridViewCellEventArgs)preEvent);
             }
             else if (preSender is System.Windows.Forms.ToolStripMenuItem)
             {
@@ -1673,5 +1488,129 @@ namespace coms.COMSK.ui.common
 				}
 			}
 		}
-	}
+
+		private void gcData30Period_CellMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+		{
+			if (e.Button != MouseButtons.Right) return;
+			if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+			var grid = (DataGridView)sender;
+
+			int rowHandle = e.RowIndex;
+			string detailCode = DetailSummary[rowHandle].ReservePlanDetailCode;
+
+			bool canEditByCalcDivition = isArea && (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_MONTH_RESERVE_COST ||
+				detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_LUMPSUM_COST);
+
+			if ((detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_TRANSFAR_COST) ||
+				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_IN_COST) ||
+				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_COST) ||
+				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_TRANSFAR_COST) ||
+				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST) ||
+				canEditByCalcDivition ||
+				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_SHARED_MONTH_RESERVE_COST) ||
+				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_SHARED_LUMPSUM_COST))
+			{
+				applyDetailCode = detailCode;
+				applyRowIndex = rowHandle;
+				applyColumnIndex = e.ColumnIndex;
+
+				// optional: ensure the clicked cell becomes current (like many grids)
+				grid.CurrentCell = grid[e.ColumnIndex, e.RowIndex];
+
+				// Show exactly at mouse cursor position (screen coords)
+				cmsApply.Show(Cursor.Position);
+			}
+		}
+
+		private void gcData30Period_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+			preSender = sender;
+			preEvent = e;
+			try
+			{
+				//  現在行の種別を取得
+				int rowHandle = e.RowIndex;
+				var grid = sender as DataGridView;
+				var rowData = grid.Rows[rowHandle].DataBoundItem as coms.COMSK.common.Data30Period;
+				string detailCode = rowData?.ReservePlanDetailCode;
+
+				//  行番号を取得
+				int index = e.ColumnIndex;
+
+				if (preMode) rowData.SetValue(index, preVal);
+				else preVal = rowData.GetValue(index);
+
+				if (!preMode) this.SetValueChangedCells(detailCode, rowHandle, index);
+
+				//  コードで分岐
+				List<string> onlyCalcUpperCodes = new List<string>()
+				{
+					COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_TRANSFAR_COST,
+					COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_IN_COST,
+					COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_COST,
+					COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_TRANSFAR_COST
+				};
+
+				// 年度内住戸積立金
+				if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST)
+				{
+					calculator.SetLastYearHouseReserveCost(index);
+				}
+
+				bool onlyCalcUpper = detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST;
+
+				// その他収入等変更時に年度内住戸積立金既に変更した場合その金額で年度内修繕積立金～積立金累計がその変更した年度内住戸積立金値で計算します
+				if (!onlyCalcUpper)
+				{
+					onlyCalcUpper = this.IsValueChangedCell(COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST, index);
+					onlyCalcUpper = onlyCalcUpper && onlyCalcUpperCodes.Contains(detailCode);
+				}
+
+				if (onlyCalcUpper)
+				{
+					//  積立金累計から逆計算
+					calculator.CalcAllUpperYearHouseReserveCost(index);
+
+					//  再表示
+					grid.Refresh();
+
+					//  イベント着火
+					FireTotalReserveChanged();
+				}
+				else
+				{
+					// 次年度の年度内住戸積立金が手入力した場合再計算しません
+					var nextYearAmountChanged = this.IsValueChangedCell(COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST, index + 1);
+					var currYearAmountChanged = this.IsValueChangedCell(COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST, index);
+
+					// 【住戸月額積立金単価】を変更する場合年度内住戸積立金が必ず再計算する
+					if (currYearAmountChanged)
+					{
+						if (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_MONTH_RESERVE_COST ||
+							detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_SHARED_MONTH_RESERVE_COST)
+						{
+							currYearAmountChanged = false;
+							this.ResetChangedCells(
+								new List<string>() { COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST },
+								new List<int>() { index });
+						}
+					}
+
+					//  全て再計算
+					//calculator.CalcTotal(index);
+					calculator.CalcReserveByValueChanged(index, currYearAmountChanged, !(nextYearAmountChanged));
+
+					//  再表示
+					grid.Refresh();
+
+					//  チャート更新
+					FireTotalReserveChanged();
+				}
+			}
+			catch (Exception)
+			{
+			}
+		}
+    }
 }

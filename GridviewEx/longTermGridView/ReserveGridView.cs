@@ -21,7 +21,10 @@
             MultiSelect = false;
 
             AutoGenerateColumns = true;
-            EditMode = DataGridViewEditMode.EditOnEnter;
+
+            // CHANGE THIS:
+            // EditMode = DataGridViewEditMode.EditOnEnter;
+            EditMode = DataGridViewEditMode.EditProgrammatically;
 
             CellFormatting += ReserveGridView_CellFormatting;
             CellPainting += ReserveGridView_CellPainting;
@@ -340,6 +343,29 @@
 
                 Columns.RemoveAt(index);
                 Columns.Insert(index, col);
+            }
+        }
+
+        protected override void OnCellMouseDown(DataGridViewCellMouseEventArgs e)
+        {
+            base.OnCellMouseDown(e);
+
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+            // Always just select on mouse down (both buttons)
+            CurrentCell = this[e.ColumnIndex, e.RowIndex];
+
+            // Right click: selection only (no edit)
+            if (e.Button == MouseButtons.Right) return;
+
+            // Left click: start editing (if allowed)
+            if (e.Button == MouseButtons.Left)
+            {
+                if (!IsCellReadOnlyEffective(e.RowIndex, e.ColumnIndex))
+                {
+                    // BeginEdit triggers your CellBeginEdit rules too
+                    BeginEdit(true);
+                }
             }
         }
     }
