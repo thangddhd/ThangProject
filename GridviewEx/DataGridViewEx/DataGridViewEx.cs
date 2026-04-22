@@ -51,7 +51,9 @@ namespace coms.COMMON.ui
         public event EventHandler<CellBackColorNeededEventArgs> CellBackColorNeeded;
         public event EventHandler<RowBackColorNeededEventArgs> RowBackColorNeeded;
         public event EventHandler<TextBoxIconNeededEventArgs> TextBoxIconNeeded;
-        public event EventHandler<LinkColumnEditEventArgs> LinkColumnEdit;
+        public event EventHandler<ColumnEditEventArgs> LinkColumnEdit;
+        public event EventHandler<ColumnEditEventArgs> CheckboxColumnEdit;
+        public event EventHandler<ColumnEditEventArgs> ButtonColumnEdit;
         public event EventHandler<ComboboxColumnEditEventArgs> ComboboxColumnEdit;
         //--------------------------
         public event EventHandler<CustomRowCellEventArgs> CustomRowCell;
@@ -151,19 +153,19 @@ namespace coms.COMMON.ui
             this.ColumnHeadersHeight = 25;
 
             this.DragEnter += (s, e) => e.Effect = DragDropEffects.Move;
-            this.DragDrop += GroupableDataGridView_DragDrop;
-            this.DragOver += GroupableDataGridView_DragOver;
-            this.Paint += GroupableDataGridView_Paint;
+            this.DragDrop += DataGridViewEx_DragDrop;
+            this.DragOver += DataGridViewEx_DragOver;
+            this.Paint += DataGridViewEx_Paint;
 
-            this.CellPainting += GroupableDataGridView_CellPainting;
-            this.CellMouseEnter += GroupableDataGridView_CellMouseEnter;
-            this.CellMouseLeave += GroupableDataGridView_CellMouseLeave;
-            this.CellMouseClick += GroupableDataGridView_CellMouseClick;
-            this.DataBindingComplete += GroupableDataGridView_DataBindingComplete;
+            this.CellPainting += DataGridViewEx_CellPainting;
+            this.CellMouseEnter += DataGridViewEx_CellMouseEnter;
+            this.CellMouseLeave += DataGridViewEx_CellMouseLeave;
+            this.CellMouseClick += DataGridViewEx_CellMouseClick;
+            this.DataBindingComplete += DataGridViewEx_DataBindingComplete;
             //this.CellContentClick += DataGridViewEx_CellContentClick;
 
-            this.ColumnDisplayIndexChanged += GroupableDataGridView_ColumnDisplayIndexChanged;
-            this.ColumnStateChanged += GroupableDataGridView_ColumnStateChanged;
+            this.ColumnDisplayIndexChanged += DataGridViewEx_ColumnDisplayIndexChanged;
+            this.ColumnStateChanged += DataGridViewEx_ColumnStateChanged;
             this.initialOtherControl();
         }
 
@@ -251,13 +253,13 @@ namespace coms.COMMON.ui
             _clearFilterButton.BringToFront();
         }
 
-        private void GroupableDataGridView_ColumnDisplayIndexChanged(object sender, DataGridViewColumnEventArgs e)
+        private void DataGridViewEx_ColumnDisplayIndexChanged(object sender, DataGridViewColumnEventArgs e)
         {
             if (_suppressColumnReorder) return;
             UpdateVisibleColumnOrder();
         }
 
-        private void GroupableDataGridView_ColumnStateChanged(object sender, DataGridViewColumnStateChangedEventArgs e)
+        private void DataGridViewEx_ColumnStateChanged(object sender, DataGridViewColumnStateChangedEventArgs e)
         {
             if (e.StateChanged == DataGridViewElementStates.Visible)
             {
@@ -297,7 +299,7 @@ namespace coms.COMMON.ui
             _suppressColumnReorder = false;
         }
 
-        private void GroupableDataGridView_DragOver(object sender, DragEventArgs e)
+        private void DataGridViewEx_DragOver(object sender, DragEventArgs e)
         {
             Point clientPoint = this.PointToClient(new Point(e.X, e.Y));
             var hit = this.HitTest(clientPoint.X, clientPoint.Y);
@@ -378,7 +380,7 @@ namespace coms.COMMON.ui
             }
         }
 
-        private void GroupableDataGridView_Paint(object sender, PaintEventArgs e)
+        private void DataGridViewEx_Paint(object sender, PaintEventArgs e)
         {
             // Draw the DarkGoldenrod insertion line for column drag/drop
             if (_insertionMarkIndex >= 0 && _insertionMarkX >= 0)
@@ -415,7 +417,7 @@ namespace coms.COMMON.ui
             }
         }
 
-        private void GroupableDataGridView_DragDrop(object sender, DragEventArgs e)
+        private void DataGridViewEx_DragDrop(object sender, DragEventArgs e)
         {
             string colName = null;
 
@@ -460,7 +462,7 @@ namespace coms.COMMON.ui
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("GroupableDataGridView_DragDrop: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine("DataGridViewEx_DragDrop: " + ex.Message);
             }
 
             // Clear red insertion line
@@ -980,7 +982,7 @@ namespace coms.COMMON.ui
         #endregion
 
         #region Events & Painting
-        private void GroupableDataGridView_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
+        private void DataGridViewEx_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
         {
             ChangeCellEditor(Columns);
 
@@ -989,7 +991,7 @@ namespace coms.COMMON.ui
                 RebuildGrouping();
         }
 
-        private void GroupableDataGridView_CellMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+        private void DataGridViewEx_CellMouseClick(object sender, DataGridViewCellMouseEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
 
@@ -997,7 +999,7 @@ namespace coms.COMMON.ui
             if (row.Tag is null) return;
             var tagObj = row.Tag as dynamic;
             bool isGroup = false;
-            try { isGroup = tagObj.IsGroup; } catch (Exception ex) { isGroup = false; System.Diagnostics.Debug.WriteLine("GroupableDataGridView_CellMouseClick: " + ex.Message); }
+            try { isGroup = tagObj.IsGroup; } catch (Exception ex) { isGroup = false; System.Diagnostics.Debug.WriteLine("DataGridViewEx_CellMouseClick: " + ex.Message); }
 
             if (isGroup)
             {
@@ -1007,7 +1009,7 @@ namespace coms.COMMON.ui
             }
         }
 
-        private void GroupableDataGridView_CellMouseEnter(object sender, DataGridViewCellEventArgs e)
+        private void DataGridViewEx_CellMouseEnter(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0)
             {
@@ -1029,13 +1031,13 @@ namespace coms.COMMON.ui
         //    }
         //}
 
-        private void GroupableDataGridView_CellMouseLeave(object sender, DataGridViewCellEventArgs e)
+        private void DataGridViewEx_CellMouseLeave(object sender, DataGridViewCellEventArgs e)
         {
             _hoverRowIndex = -1;
             this.Invalidate();
         }
 
-        private void GroupableDataGridView_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        private void DataGridViewEx_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
             //------------------------------
             // ヘッダ
@@ -1057,7 +1059,7 @@ namespace coms.COMMON.ui
                     isGroupRow = tagObj.IsGroup;
                     groupKey = tagObj.GroupKey;
                 }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine("GroupableDataGridView_CellPainting: " + ex.Message); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine("DataGridViewEx_CellPainting: " + ex.Message); }
             }
 
             var (top, bottom) = GetMergeRangeForCell(column, e.ColumnIndex, e.RowIndex);
@@ -1351,7 +1353,7 @@ namespace coms.COMMON.ui
         #endregion
 
         #region Filter & Sort for List<T>
-        private void GroupableDataGridView_FilterStringChanged(object sender, EventArgs e)
+        private void DataGridViewEx_FilterStringChanged(object sender, EventArgs e)
         {
             foreach (var fld in _filteredColumns)
             {
@@ -1371,7 +1373,7 @@ namespace coms.COMMON.ui
             ApplyListFilterAndSort();
         }
 
-        private void GroupableDataGridView_SortStringChanged(object sender, EventArgs e)
+        private void DataGridViewEx_SortStringChanged(object sender, EventArgs e)
         {
             _lastSortString = this.SortString;
             ApplyListFilterAndSort();
@@ -1650,6 +1652,16 @@ namespace coms.COMMON.ui
         #region draw merged columns
         private void DrawCheckBoxColumn(DataGridViewCellPaintingEventArgs e, DataGridViewColumn column, Color fore)
         {
+            if (this.CheckboxColumnEdit != null)
+            {
+                var args = new ColumnEditEventArgs(column, this.Rows[e.RowIndex], this.Rows[e.RowIndex].DataBoundItem);
+                this.CheckboxColumnEdit.Invoke(this, args);
+                if (args.EditType == GridColumnType.None)
+                {
+                    return;
+                }
+            }
+
             bool? isChecked = null;
             if (e.Value is bool b)
                 isChecked = b;
@@ -1677,6 +1689,16 @@ namespace coms.COMMON.ui
 
         private void DrawButtonColumn(DataGridViewCellPaintingEventArgs e, DataGridViewColumn column, Color fore)
         {
+            if (this.ButtonColumnEdit != null)
+            {
+                var args = new ColumnEditEventArgs(column, this.Rows[e.RowIndex], this.Rows[e.RowIndex].DataBoundItem);
+                this.ButtonColumnEdit.Invoke(this, args);
+                if (args.EditType == GridColumnType.None)
+                {
+                    return;
+                }
+            }
+
             var btnCell = this.Rows[e.RowIndex].Cells[e.ColumnIndex] as DataGridViewButtonCell;
 
             // ボタンがセル値優先でなけらばテキスト
@@ -1840,7 +1862,7 @@ namespace coms.COMMON.ui
         {
             if (this.LinkColumnEdit != null)
             {
-                var args = new LinkColumnEditEventArgs(column, this.Rows[e.RowIndex], this.Rows[e.RowIndex].DataBoundItem);
+                var args = new ColumnEditEventArgs(column, this.Rows[e.RowIndex], this.Rows[e.RowIndex].DataBoundItem);
                 this.LinkColumnEdit.Invoke(this, args);
                 if (args.EditType == GridColumnType.TextBox)
                 {
@@ -1927,10 +1949,7 @@ namespace coms.COMMON.ui
                     else if (underlyingType == typeof(float) || underlyingType == typeof(decimal) || underlyingType == typeof(double))
                         format = "N2";
                 }
-                else if (isDate)
-                {
-                    format = "yyyy/MM/dd";
-                }
+                else if (isDate) format = "yyyy/MM/dd";
             }
 
             if (!string.IsNullOrEmpty(format))
@@ -1944,7 +1963,7 @@ namespace coms.COMMON.ui
                 }
                 else if (isDate)
                 {
-                    if (e.Value is DateTime dt && dt > DateTime.MinValue)
+                    if (e.Value is DateTime dt && dt.Year > 1900)
                         text = dt.ToString(format);
                     else
                         text = string.Empty;
@@ -2818,10 +2837,10 @@ namespace coms.COMMON.ui
                 _originalListData = null;
             }
 
-            this.FilterStringChanged -= GroupableDataGridView_FilterStringChanged;
-            this.SortStringChanged -= GroupableDataGridView_SortStringChanged;
-            this.FilterStringChanged += GroupableDataGridView_FilterStringChanged;
-            this.SortStringChanged += GroupableDataGridView_SortStringChanged;
+            this.FilterStringChanged -= DataGridViewEx_FilterStringChanged;
+            this.SortStringChanged -= DataGridViewEx_SortStringChanged;
+            this.FilterStringChanged += DataGridViewEx_FilterStringChanged;
+            this.SortStringChanged += DataGridViewEx_SortStringChanged;
 
             // === KEEP FILTER & SORT AFTER REBIND ===
             if (KeepFilterAndSort &&

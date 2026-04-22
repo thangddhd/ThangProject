@@ -179,7 +179,7 @@ namespace coms.COMMON.ui
         }
     }
 
-    public class LinkColumnEditEventArgs : EventArgs
+    public class ColumnEditEventArgs : EventArgs
     {
         public DataGridViewColumn Column { get; }
         public DataGridViewRow Row { get; }
@@ -190,7 +190,7 @@ namespace coms.COMMON.ui
         public GridColumnType EditType { get; set; } = GridColumnType.None;
         public int ColumnIndex { get; private set; }
         public int RowIndex { get; set; }
-        public LinkColumnEditEventArgs(DataGridViewColumn column, DataGridViewRow row, object dataBoundItem)
+        public ColumnEditEventArgs(DataGridViewColumn column, DataGridViewRow row, object dataBoundItem)
         {
             Column = column;
             Row = row;
