@@ -141,7 +141,6 @@ namespace coms.COMSK.ui.common
 		/// <param name="detail">The detail.</param>
 		public void Add(KumiaiRepairPlanDetail detail)
 		{
-			// TODO: binding source
 			//  現在行を取得
 			/*int currRow = gvRepairList_Building.FocusedRowHandle;
 			KumiaiRepairPlanDetail currRepairPlanDetail = gvRepairList_Building.GetRow(currRow) as KumiaiRepairPlanDetail;
