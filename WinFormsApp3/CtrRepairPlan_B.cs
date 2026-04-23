@@ -121,6 +121,8 @@ namespace coms.COMSK.ui.common
 			{
 				System.Diagnostics.Debug.WriteLine(ex);
 			}
+
+			gcRepairList_Building.IgnoreAutoFormatColumns = new HashSet<string>(new[] { clPrice_B.Name });
 		}
 
 		#endregion
@@ -141,32 +143,65 @@ namespace coms.COMSK.ui.common
 		/// <param name="detail">The detail.</param>
 		public void Add(KumiaiRepairPlanDetail detail)
 		{
-			//  現在行を取得
-			/*int currRow = gvRepairList_Building.FocusedRowHandle;
-			KumiaiRepairPlanDetail currRepairPlanDetail = gvRepairList_Building.GetRow(currRow) as KumiaiRepairPlanDetail;
+			if (detail == null) return;
+			if (DataSource == null) DataSource = new List<KumiaiRepairPlanDetail>();
 
-			//  ViewSequenceDisplay を設定
-			if (currRepairPlanDetail == null)
+			var grid = gcRepairList_Building;
+
+			// 1) current selected row object (like FocusedRowHandle)
+			KumiaiRepairPlanDetail current = null;
+			int currRowIndex = -1;
+
+			try
 			{
+				currRowIndex = grid?.FocusedRowHandle ?? -1;
+				if (currRowIndex >= 0)
+					current = grid.GetRowObject<KumiaiRepairPlanDetail>(currRowIndex);
+			}
+			catch
+			{
+				currRowIndex = -1;
+				current = null;
+			}
+
+			// 2) compute ViewSequenceDisplay
+			if (current == null)
 				detail.ViewSequenceDisplay = 1;
-			}
 			else
-			{
-				detail.ViewSequenceDisplay = currRepairPlanDetail.ViewSequenceDisplay + 0.1;
-			}
+				detail.ViewSequenceDisplay = current.ViewSequenceDisplay + 0.1;
 
-			//  挿入
-			if (currRow < 0)
+			// 3) insert into list after the current item
+			if (current == null)
 			{
 				DataSource.Add(detail);
 			}
 			else
 			{
-				DataSource.Insert(currRow + 1, detail);
+				int indexInList = DataSource.IndexOf(current);
+				if (indexInList < 0)
+				{
+					// fallback: append
+					DataSource.Add(detail);
+				}
+				else
+				{
+					DataSource.Insert(indexInList + 1, detail);
+				}
 			}
 
-			//  リフレッシュ
-			gcRepairList_Building.RefreshDataSource();*/
+			// 4) refresh the grid
+			// safest way: rebind the list so the grid rebuilds rows
+			try
+			{
+				// Re-assigning DataSource forces UI refresh reliably in WinForms binding.
+				this.DataSource = DataSource.ToList();
+				grid.Refresh();
+			}
+			catch
+			{
+				// last resort
+				grid?.Invalidate();
+			}
 		}
 
 		/// <summary>
@@ -189,21 +224,21 @@ namespace coms.COMSK.ui.common
 
 		#region イベント
 
-        // ADD 2012/08/07 S.Igarashi No.7 ↓
-        private void RefleshChildRepairPlanDetail(KumiaiRepairPlanDetail detail)
-        {
-            for (int i = 0; i <= this.DataSource.Count - 1; i++)
-            {
-                if (this.DataSource[i].ParentPid == detail.Pid)
-                {
-                    //数量
-                    this.DataSource[i].Amount = detail.Amount;
-                    //更新フラグ
-                    this.DataSource[i].UpdateFlg = COMSK.common.COMSKCommon.HAS_HISTORY_FLG_ON;
-                }
-            }
-        }
-        // ADD 2012/08/07 S.Igarashi No.7 ↑
+		// ADD 2012/08/07 S.Igarashi No.7 ↓
+		private void RefleshChildRepairPlanDetail(KumiaiRepairPlanDetail detail)
+		{
+			for (int i = 0; i <= this.DataSource.Count - 1; i++)
+			{
+				if (this.DataSource[i].ParentPid == detail.Pid)
+				{
+					//数量
+					this.DataSource[i].Amount = detail.Amount;
+					//更新フラグ
+					this.DataSource[i].UpdateFlg = COMSK.common.COMSKCommon.HAS_HISTORY_FLG_ON;
+				}
+			}
+		}
+		// ADD 2012/08/07 S.Igarashi No.7 ↑
 
 		private void gcRepairList_Building_ButtonIconNeeded(object sender, COMMON.ui.ButtonIconNeededEventArgs e)
 		{
@@ -314,8 +349,8 @@ namespace coms.COMSK.ui.common
 		#endregion
 
 
-        private void gcRepairList_Building_CellValueChanged(object sender, DataGridViewCellEventArgs e)
-        {
+		private void gcRepairList_Building_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+		{
 			try
 			{
 				var col = gcRepairList_Building.Columns[e.ColumnIndex];
@@ -336,8 +371,8 @@ namespace coms.COMSK.ui.common
 			}
 		}
 
-        private void gcRepairList_Building_CellMouseClick(object sender, DataGridViewCellMouseEventArgs e)
-        {
+		private void gcRepairList_Building_CellMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+		{
 			try
 			{
 				if (e.Button == MouseButtons.Left)
@@ -417,8 +452,8 @@ namespace coms.COMSK.ui.common
 			}
 		}
 
-        private void gcRepairList_Building_CustomColumnDisplayText(object sender, COMMON.ui.CustomColumnDisplayTextEventArgs e)
-        {
+		private void gcRepairList_Building_CustomColumnDisplayText(object sender, COMMON.ui.CustomColumnDisplayTextEventArgs e)
+		{
 			try
 			{
 				//  行データを取得
@@ -480,5 +515,5 @@ namespace coms.COMSK.ui.common
 			{
 			}
 		}
-    }
+	}
 }
