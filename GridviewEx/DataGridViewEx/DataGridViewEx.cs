@@ -1752,7 +1752,7 @@ namespace coms.COMMON.ui
 
             bool isHovered = (e.RowIndex == _hoverRowIndex && e.ColumnIndex == _hoverColumnIndex);
             Color colorTop = isHovered ? Color.FromArgb(255, 250, 211) : Color.FromArgb(245, 245, 245);
-            Color colorBottom = isHovered ? _buttonHoverBgColor : _buttonBgColor;
+            Color colorBottom = isHovered ? _buttonHoverBgColor : backColor;
 
             using (GraphicsPath path = GetRoundedRect(rect, 6))
             {
