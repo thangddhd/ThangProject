@@ -96,7 +96,7 @@ namespace coms.COMMON.ui
         private string _groupColumn = null;
         private readonly List<GroupRowInfo> _groups = new List<GroupRowInfo>();
         private int _hoverRowIndex = -1;
-        private Image _filterIcon = GridviewEx.Properties.Resources.icons8_filter_16;
+        private Image _filterIcon = Properties.Resources.icons8_filter_16;
         private int _hoverColumnIndex = -1;
         private object _oldCellValue;
         private int _insertionMarkIndex = -1;
@@ -185,7 +185,7 @@ namespace coms.COMMON.ui
             _clearFilterButton.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             _clearFilterButton.TextImageRelation = TextImageRelation.ImageBeforeText;
 
-            _clearFilterButton.Image = GridviewEx.Properties.Resources.delete2_16;
+            _clearFilterButton.Image = Properties.Resources.delete2_16;
 
             _clearFilterButton.Click += (s, e) =>
             {
@@ -2098,7 +2098,7 @@ namespace coms.COMMON.ui
             DataGridViewColumn column,
             Color back,
             Color fore
-            )
+        )
         {
             var cell = this.Rows[e.RowIndex].Cells[e.ColumnIndex] as DataGridViewComboBoxCell;
             if (cell == null)
@@ -2107,19 +2107,84 @@ namespace coms.COMMON.ui
                 return;
             }
 
+            // =========================================================
+            // NEW: allow parent form to change enabled/readonly/color/etc
+            // =========================================================
+            bool enabled = true;
+            bool? forceReadOnly = null;
+            Color overrideBack = Color.Empty;
+
+            if (this.ComboboxColumnEdit != null)
+            {
+                var args = new ComboboxColumnEditEventArgs(column, this.Rows[e.RowIndex], this.Rows[e.RowIndex].DataBoundItem);
+
+                // default state from current cell
+                args.Enabled = !cell.ReadOnly;
+                args.ReadOnly = null;
+                args.BackColor = Color.Empty;
+
+                // fire event
+                RaiseComboboxColumnEdit(args);
+
+                enabled = args.Enabled;
+                forceReadOnly = args.ReadOnly;
+                overrideBack = args.BackColor;
+
+                // apply readonly logic to the cell (so it affects behavior + painting)
+                // Rule:
+                // - Enabled=false => must be readonly
+                // - ReadOnly=true => readonly
+                // - ReadOnly=false => editable (unless Enabled=false)
+                if (!enabled)
+                {
+                    cell.ReadOnly = true;
+                }
+                else if (forceReadOnly.HasValue)
+                {
+                    cell.ReadOnly = forceReadOnly.Value;
+                }
+
+                // optional: allow overriding datasouce (if you want)
+                // (Only apply when provided to avoid breaking existing binding)
+                if (args.DataSource != null)
+                {
+                    cell.DataSource = args.DataSource;
+                    if (args.DisplayMember != null) cell.DisplayMember = args.DisplayMember;
+                    if (args.ValueMember != null) cell.ValueMember = args.ValueMember;
+                }
+
+                // optional: if you want to show different text without changing value,
+                // you can use args.TextValue, but your GetComboDisplayText() returns by value.
+                // So here we will prefer args.TextValue if provided.
+            }
+
             string text = GetComboDisplayText(cell);
+            if (this.ComboboxColumnEdit != null)
+            {
+                // re-create args? No. Keep simple: if you need TextValue, do it via CellFormatting instead.
+                // But if you really want, you can store it in cell.Tag; not doing that here.
+            }
 
             Rectangle rect = e.CellBounds;
+
             bool isReadOnly = cell.ReadOnly;
             Color backgroundColor = back;
+
+            // NEW: allow event override background
+            if (overrideBack != Color.Empty)
+                backgroundColor = overrideBack;
+
             if (isReadOnly)
             {
-                backgroundColor = DataGridViewExHelper.READONLY_COLOR;
+                // if readonly, keep your original style
+                backgroundColor = (overrideBack != Color.Empty) ? overrideBack : DataGridViewExHelper.READONLY_COLOR;
             }
+
             using (var b = new SolidBrush(backgroundColor))
             {
                 e.Graphics.FillRectangle(b, rect);
             }
+
             TextFormatFlags flags =
                 TextFormatFlags.VerticalCenter |
                 TextFormatFlags.Left |
@@ -2341,15 +2406,7 @@ namespace coms.COMMON.ui
         protected override void OnCellBeginEdit(DataGridViewCellCancelEventArgs e)
         {
             base.OnCellBeginEdit(e);
-            //// checkboxエディター無効化
-            //if (this.Columns[e.ColumnIndex] is DataGridViewCheckBoxColumn)
-            //{
-            //    e.Cancel = true;
-            //    return;
-            //}
-            //--------------------------
-            // Event Fire: 確認
-            // CustomRowCellEdit
+
             //--------------------------
             if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
             {
@@ -2360,6 +2417,47 @@ namespace coms.COMMON.ui
                 _oldCellValue = null;
             }
             //--------------------------
+
+            // =========================================================
+            // NEW: prevent editing combobox when parent says Disabled/ReadOnly
+            // =========================================================
+            try
+            {
+                if (e.RowIndex >= 0 && e.ColumnIndex >= 0 &&
+                    this.Columns[e.ColumnIndex] is DataGridViewComboBoxColumn)
+                {
+                    var cell = this.Rows[e.RowIndex].Cells[e.ColumnIndex] as DataGridViewComboBoxCell;
+                    if (cell != null)
+                    {
+                        // if cell already readonly => block edit
+                        if (cell.ReadOnly)
+                        {
+                            e.Cancel = true;
+                            return;
+                        }
+
+                        if (this.ComboboxColumnEdit != null)
+                        {
+                            var args = new ComboboxColumnEditEventArgs(this.Columns[e.ColumnIndex], this.Rows[e.RowIndex], this.Rows[e.RowIndex].DataBoundItem);
+                            args.Enabled = true;
+                            args.ReadOnly = null;
+
+                            RaiseComboboxColumnEdit(args);
+
+                            // Enabled=false OR ReadOnly=true => cancel edit
+                            if (!args.Enabled || (args.ReadOnly.HasValue && args.ReadOnly.Value))
+                            {
+                                e.Cancel = true;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("OnCellBeginEdit combobox enabled/readonly check: " + ex.Message);
+            }
         }
 
         /// <summary>
