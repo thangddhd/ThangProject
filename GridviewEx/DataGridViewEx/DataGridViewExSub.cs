@@ -532,10 +532,4 @@ namespace coms.COMMON.ui
             ColumnIndex = -1;
         }
     }
-
-
-
-
-
-
 }

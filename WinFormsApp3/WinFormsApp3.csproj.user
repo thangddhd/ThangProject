@@ -10,6 +10,12 @@
     <Compile Update="CtrLongtermRepairPlan_Total.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Update="CtrRepairPlan_B.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="CtrRepairPlan_E.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Update="CtrRepairReservePlan.cs">
       <SubType>UserControl</SubType>
     </Compile>

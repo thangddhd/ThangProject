@@ -1083,6 +1083,14 @@ namespace coms.COMMON.ui
                 back = StyleSettings.HoverBackColor;
             }
 
+            // --- Row-level event ---
+            if (RowBackColorNeeded != null && !isGroupRow) // グループ対象外
+            {
+                var rowArgs = new RowBackColorNeededEventArgs(row, row.DataBoundItem, back);
+                RowBackColorNeeded.Invoke(this, rowArgs);
+                back = rowArgs.BackColor;
+            }
+
             // --- Selected row ---
             if (row.Selected && UsingRowSelectedStyle)
             {
@@ -1092,14 +1100,6 @@ namespace coms.COMMON.ui
                 {
                     fore = StyleSettings.SelectedTextColor;
                 }
-            }
-
-            // --- Row-level event ---
-            if (RowBackColorNeeded != null && !isGroupRow) // グループ対象外
-            {
-                var rowArgs = new RowBackColorNeededEventArgs(row, row.DataBoundItem, back);
-                RowBackColorNeeded.Invoke(this, rowArgs);
-                back = rowArgs.BackColor;
             }
 
             // --- Cell-level event overrides row ---
