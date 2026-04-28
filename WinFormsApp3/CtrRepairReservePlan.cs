@@ -296,23 +296,6 @@ namespace coms.COMSK.ui.common
 
 			//  データソース設定 -- no show invisible
 			gcData30Period.DataSource = dataList.Where(item => item.Visible).ToList();
-
-			try
-			{
-				// IMPORTANT: ensure no editing control is active, otherwise CellPainting may skip repaint
-				gcData30Period.EndEdit(DataGridViewDataErrorContexts.Commit);
-				gcData30Period.CancelEdit();
-			}
-			catch { }
-
-			// Reset current cell (prevents edit-mode state/cached painting)
-			gcData30Period.CurrentCell = null;
-			gcData30Period.ClearSelection();
-
-			// now force full repaint
-			gcData30Period.Invalidate(true);
-			gcData30Period.Update();
-
 			#endregion
 
 			//  計算ヘルパにプロパティを設定
@@ -359,8 +342,7 @@ namespace coms.COMSK.ui.common
 			CreateLabels(draft);
 
 			//  データリフレッシュ
-			//gcData30Period.Refresh();
-			//COMSKCommon.ForceRepaintGrid(gcData30Period);
+			gcData30Period.Refresh();
 
 			//  名前変更イベントを飛ばす
 			if (DraftNameChanged != null)
@@ -697,11 +679,14 @@ namespace coms.COMSK.ui.common
 		{
 			try
 			{
-				int columnIndex = e.ColumnIndex;
 				int rowHandle = e.RowIndex;
-				var grid = sender as DataGridView;
-				var data = grid?.Rows[rowHandle]?.DataBoundItem as Data30Period;
-				if (data == null) return;
+
+				Data30Period data = dataList[rowHandle];
+				int columnIndex = e.ColumnIndex;
+				if (columnIndex <= 1)
+                {
+					var bvv = 1;
+                }
 				string detailCode = DetailSummary[rowHandle].ReservePlanDetailCode;
 
 				if (columnIndex < COMSKCommon.MAX_VISIBLE_YEAR)
@@ -1513,16 +1498,14 @@ namespace coms.COMSK.ui.common
 
 			int rowHandle = e.RowIndex;
 			string detailCode = DetailSummary[rowHandle].ReservePlanDetailCode;
-
-			bool canEditByCalcDivition = isArea && (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_MONTH_RESERVE_COST ||
+			bool showAreaMenustrip = isArea && (detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_MONTH_RESERVE_COST || 
 				detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_LUMPSUM_COST);
-
 			if ((detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_TRANSFAR_COST) ||
 				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_IN_COST) ||
 				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_COST) ||
 				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_OTHER_OUT_TRANSFAR_COST) ||
 				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_YEAR_HOUSE_RESERVE_COST) ||
-				canEditByCalcDivition ||
+				showAreaMenustrip ||
 				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_SHARED_MONTH_RESERVE_COST) ||
 				(detailCode == COMSKCommon.COMSK_REPAIR_RESERVE_PLAN_DETAIL_CODE_HOUSE_SHARED_LUMPSUM_COST))
 			{

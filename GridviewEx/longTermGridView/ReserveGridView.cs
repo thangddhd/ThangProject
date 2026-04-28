@@ -35,6 +35,7 @@
         }
 
         private ReserveGridViewMode _mode = ReserveGridViewMode.Editable;
+        private bool _suppressNextBeginEdit;
 
         [DefaultValue(ReserveGridViewMode.Editable)]
         public ReserveGridViewMode Mode
@@ -198,6 +199,7 @@
                 CurrentCell.RowIndex == e.RowIndex &&
                 CurrentCell.ColumnIndex == e.ColumnIndex)
             {
+                e.Handled = false;
                 return;
             }
 
@@ -348,25 +350,56 @@
 
         protected override void OnCellMouseDown(DataGridViewCellMouseEventArgs e)
         {
+            // Right click should NEVER start editing
+            if (e.Button == MouseButtons.Right)
+                _suppressNextBeginEdit = true;
+
+            // If any edit is active/pending, stop it before changing cell
+            if (e.Button == MouseButtons.Right)
+            {
+                try
+                {
+                    // Ends/cancels any active editor so right-click behaves consistently while focused
+                    EndEdit(DataGridViewDataErrorContexts.Commit);
+                    CancelEdit();
+                }
+                catch { }
+            }
+
             base.OnCellMouseDown(e);
 
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
 
-            // Always just select on mouse down (both buttons)
+            // select clicked cell (both buttons)
             CurrentCell = this[e.ColumnIndex, e.RowIndex];
 
-            // Right click: selection only (no edit)
-            if (e.Button == MouseButtons.Right) return;
-
-            // Left click: start editing (if allowed)
+            // left click => enter edit explicitly
             if (e.Button == MouseButtons.Left)
             {
                 if (!IsCellReadOnlyEffective(e.RowIndex, e.ColumnIndex))
-                {
-                    // BeginEdit triggers your CellBeginEdit rules too
                     BeginEdit(true);
-                }
             }
+        }
+
+        // Add this override in ReserveGridView class:
+        protected override void OnCellBeginEdit(DataGridViewCellCancelEventArgs e)
+        {
+            // If a right-click caused/preceded this edit, cancel it.
+            if (_suppressNextBeginEdit)
+            {
+                e.Cancel = true;
+                _suppressNextBeginEdit = false;
+                return;
+            }
+
+            base.OnCellBeginEdit(e);
+        }
+
+        // Optional but helps: reset suppression when leaving the grid
+        protected override void OnLeave(EventArgs e)
+        {
+            _suppressNextBeginEdit = false;
+            base.OnLeave(e);
         }
     }
 

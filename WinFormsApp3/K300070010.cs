@@ -342,6 +342,7 @@ namespace coms.COMSK.ui
 			if (e.RowIndex < 3)
 			{
 				e.BackColor = Color.Yellow;
+				e.DisableFocusedStyle = true;
 			}
 		}
 		#endregion
@@ -442,7 +443,15 @@ namespace coms.COMSK.ui
 				}
 
 				//  カーソル位置から新しい Y 位置を計算する
-				double yValue = chartGraph.ChartAreas["Default"].AxisY.PixelPositionToValue(coordinate);
+				double yValue = 0;
+				try
+                {
+					yValue = chartGraph.ChartAreas["Default"].AxisY.PixelPositionToValue(coordinate);
+				}
+				catch(Exception ex)
+                {
+                }
+
 				yValue = Math.Min(yValue, chartGraph.ChartAreas["Default"].AxisY.Maximum);
 				yValue = Math.Max(yValue, chartGraph.ChartAreas["Default"].AxisY.Minimum);
 				if (yValue <= 0)
@@ -555,7 +564,14 @@ namespace coms.COMSK.ui
 				}
 
 				//  カーソル位置から新しい Y 位置を計算する
-				double yValue = chartGraph.ChartAreas["Default"].AxisY.PixelPositionToValue(coordinate);
+				double yValue = 0;
+				try
+                {
+					yValue = chartGraph.ChartAreas["Default"].AxisY.PixelPositionToValue(coordinate);
+				}
+				catch(Exception ex)
+                {
+                }
 				yValue = Math.Min(yValue, chartGraph.ChartAreas["Default"].AxisY.Maximum);
 				yValue = Math.Max(yValue, chartGraph.ChartAreas["Default"].AxisY.Minimum);
 				if (yValue <= 0)

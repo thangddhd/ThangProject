@@ -1365,7 +1365,7 @@
             this.gcData30Period.AllowUserToAddRows = false;
             this.gcData30Period.AllowUserToDeleteRows = false;
             this.gcData30Period.AllowUserToResizeRows = false;
-            this.gcData30Period.BackgroundColor = System.Drawing.SystemColors.Control;
+            this.gcData30Period.BackgroundColor = System.Drawing.Color.White;
             this.gcData30Period.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.gcData30Period.ColumnHeadersVisible = false;
             this.gcData30Period.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
@@ -1430,7 +1430,7 @@
             this.gridColumn59,
             this.gridColumn60});
             dataGridViewCellStyle61.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle61.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle61.BackColor = System.Drawing.Color.White;
             dataGridViewCellStyle61.Font = new System.Drawing.Font("MS UI Gothic", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
             dataGridViewCellStyle61.ForeColor = System.Drawing.SystemColors.ControlText;
             dataGridViewCellStyle61.SelectionBackColor = System.Drawing.SystemColors.Highlight;
