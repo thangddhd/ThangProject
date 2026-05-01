@@ -232,6 +232,8 @@ namespace coms.COMSK.ui.common
 		{
 			InitializeComponent();
 			this.scrollingByParent = false;
+
+			this.gcData30Period.CellBeginEdit += gcData30Period_CellBeginEdit_Snapshot;
 		}
 
 		/// <summary>
@@ -1502,6 +1504,25 @@ namespace coms.COMSK.ui.common
 			}
 		}
 
+		private void gcData30Period_CellBeginEdit_Snapshot(object sender, DataGridViewCellCancelEventArgs e)
+		{
+			try
+			{
+				var grid = sender as DataGridView;
+				if (grid == null) return;
+				if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+				var rowData = grid.Rows[e.RowIndex].DataBoundItem as Data30Period;
+				if (rowData == null) return;
+
+				double oldVal = rowData.GetValue(e.ColumnIndex);
+
+				// store the pre-edit value snapshot on the cell
+				grid[e.ColumnIndex, e.RowIndex].Tag = oldVal;
+			}
+			catch { }
+		}
+
 		private void gcData30Period_CellValueChanged(object sender, DataGridViewCellEventArgs e)
 		{
 			preSender = sender;
@@ -1510,12 +1531,40 @@ namespace coms.COMSK.ui.common
 			{
 				//  現在行の種別を取得
 				int rowHandle = e.RowIndex;
-				var grid = sender as DataGridView;
-				var rowData = grid.Rows[rowHandle].DataBoundItem as coms.COMSK.common.Data30Period;
-				string detailCode = rowData?.ReservePlanDetailCode;
-
-				//  行番号を取得
 				int index = e.ColumnIndex;
+				var grid = sender as DataGridView;
+				if (grid == null) return;
+				if (rowHandle < 0 || index < 0) return;
+
+				// Current stored value after commit (from bound object)
+				var rowData = grid.Rows[rowHandle].DataBoundItem as Data30Period;
+				if (rowData == null) return;
+
+				string detailCode = rowData.ReservePlanDetailCode;
+
+				// If this is a numeric column and you only display 2 decimals,
+				// suppress events that only differ beyond 2 decimals.
+				//
+				// preVal in your code is "previous value" captured before commit.
+				// If preVal isn't set reliably for focus-in/out cases, then we need another source.
+				// We'll compare against the value before edit using the cell's "Tag" snapshot (see note below).
+				if (grid.CurrentCell != null &&
+					grid.CurrentCell.RowIndex == rowHandle &&
+					grid.CurrentCell.ColumnIndex == index &&
+					grid.CurrentCell.Tag is double oldSnapshot)
+				{
+					double newVal = rowData.GetValue(index);
+
+					if (AreSameBy2Decimals(oldSnapshot, newVal))
+					{
+						// reset tag snapshot and ignore
+						grid.CurrentCell.Tag = null;
+						return;
+					}
+
+					// reset snapshot (we will treat as real change)
+					grid.CurrentCell.Tag = null;
+				}
 
 				if (preMode) rowData.SetValue(index, preVal);
 				else preVal = rowData.GetValue(index);
@@ -1590,6 +1639,29 @@ namespace coms.COMSK.ui.common
 			catch (Exception)
 			{
 			}
+		}
+
+		private static bool AreSameBy2Decimals(double a, double b)
+		{
+			// Round using AwayFromZero to match typical financial display expectations.
+			// If your display uses different rounding, adjust here.
+			double ra = Math.Round(a, 2, MidpointRounding.AwayFromZero);
+			double rb = Math.Round(b, 2, MidpointRounding.AwayFromZero);
+			return ra == rb;
+		}
+
+		private static bool TryGetCellDouble(DataGridView grid, int rowIndex, int colIndex, out double value)
+		{
+			value = double.NaN;
+			if (grid == null) return false;
+			if (rowIndex < 0 || colIndex < 0) return false;
+			if (rowIndex >= grid.Rows.Count) return false;
+
+			var rowData = grid.Rows[rowIndex].DataBoundItem as Data30Period;
+			if (rowData == null) return false;
+
+			value = rowData.GetValue(colIndex);
+			return true;
 		}
 	}
 }
