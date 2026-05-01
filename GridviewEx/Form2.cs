@@ -591,6 +591,11 @@ namespace GridviewEx
 
             _grid.Invalidate();
         }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 
     // Example vertical merge provider: merges Column1..Column4 when equal.

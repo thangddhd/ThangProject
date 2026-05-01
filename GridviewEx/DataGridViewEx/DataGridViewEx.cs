@@ -96,7 +96,7 @@ namespace coms.COMMON.ui
         private string _groupColumn = null;
         private readonly List<GroupRowInfo> _groups = new List<GroupRowInfo>();
         private int _hoverRowIndex = -1;
-        private Image _filterIcon = Properties.Resources.icons8_filter_16;
+        private Image _filterIcon = GridviewEx.Properties.Resources.icons8_filter_16;
         private int _hoverColumnIndex = -1;
         private object _oldCellValue;
         private int _insertionMarkIndex = -1;
@@ -185,7 +185,7 @@ namespace coms.COMMON.ui
             _clearFilterButton.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             _clearFilterButton.TextImageRelation = TextImageRelation.ImageBeforeText;
 
-            _clearFilterButton.Image = Properties.Resources.delete2_16;
+            _clearFilterButton.Image = GridviewEx.Properties.Resources.delete2_16;
 
             _clearFilterButton.Click += (s, e) =>
             {

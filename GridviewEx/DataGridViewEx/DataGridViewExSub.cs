@@ -234,6 +234,8 @@ namespace coms.COMMON.ui
         public bool Enabled { get; set; } = true;
         public Color BackColor { get; set; } = Color.Empty;
 
+        public bool? ReadOnly { get; set; } = null;
+
         // データソース
         public object DataSource { get; set; } = null;
         public string DisplayMember { get; set; } = null;
