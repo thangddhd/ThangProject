@@ -594,7 +594,7 @@ namespace GridviewEx
 
         private void button2_Click(object sender, EventArgs e)
         {
-
+            _grid.RestoreColumns(_grid.Columns.Cast<DataGridViewColumn>().Select(c => c.Name));
         }
     }
 

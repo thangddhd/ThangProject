@@ -97,6 +97,18 @@ namespace coms.COMSK.ui.common
         private int _rangeColumnIndex = -1; // the column being selected (must stay same)
         private int _activeMoveRow = -1; // row currently used for horizontal dragging (must be inside selected range)
 
+        // ---- Header drag-to-hide support ----
+        private bool _headerBandDragging;
+        private HeaderBandCellByName _dragBandCell;
+        private Point _dragStartPoint;
+        private Point _lastMousePoint;
+        private List<string> _lastHiddenColumnNames = new List<string>();
+
+        /// <summary>
+        /// Returns column names hidden by the last drag-to-hide action.
+        /// </summary>
+        public IReadOnlyList<string> LastHiddenColumnNames => _lastHiddenColumnNames.AsReadOnly();
+
         public LongRepairGridView()
         {
             HeaderLayout = null;
@@ -138,6 +150,10 @@ namespace coms.COMSK.ui.common
             CellMouseLeave += OnCellMouseLeaveButtonHover;
             MouseDown += OnMouseDownButtonPress;
             MouseUp += OnMouseUpButtonPress;
+
+            MouseDown += OnMouseDownHeaderBandDrag;
+            MouseMove += OnMouseMoveHeaderBandDrag;
+            MouseUp += OnMouseUpHeaderBandDrag;
         }
 
         private void EnableDoubleBuffering()
@@ -1244,6 +1260,21 @@ namespace coms.COMSK.ui.common
                     cell.ForeColor,
                     bandRect,
                     center: true);
+
+                // Drag indicator (optional)
+                if (_headerBandDragging && _dragBandCell != null)
+                {
+                    using (var pen = new Pen(Color.Red, 2))
+                    {
+                        // draw a line at the top edge to hint "drop above to hide"
+                        e.Graphics.DrawLine(pen, 0, 0, this.ClientSize.Width, 0);
+                    }
+                    // draw current mouse location marker
+                    using (var b = new SolidBrush(Color.FromArgb(60, Color.Red)))
+                    {
+                        e.Graphics.FillEllipse(b, _lastMousePoint.X - 6, _lastMousePoint.Y - 6, 12, 12);
+                    }
+                }
             }
         }
 
@@ -1644,6 +1675,179 @@ namespace coms.COMSK.ui.common
                 _pressedButtonCell = new CellKey(-1, -1);
                 InvalidateCell(old.Col, old.Row);
             }
+        }
+
+        /// <summary>
+        /// Hide columns by name. Ignores names that don't exist.
+        /// </summary>
+        public void HideColumns(IEnumerable<string> columnNames)
+        {
+            if (columnNames == null) return;
+
+            var names = columnNames.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList();
+            if (names.Count == 0) return;
+
+            foreach (var name in names)
+            {
+                if (this.Columns.Contains(name))
+                    this.Columns[name].Visible = false;
+            }
+
+            _lastHiddenColumnNames = names;
+            Invalidate();
+        }
+
+        /// <summary>
+        /// Restore columns by name (set Visible=true).
+        /// </summary>
+        public void RestoreColumns(IEnumerable<string> columnNames)
+        {
+            if (columnNames == null) return;
+
+            var names = columnNames.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList();
+            if (names.Count == 0) return;
+
+            foreach (var name in names)
+            {
+                if (this.Columns.Contains(name))
+                    this.Columns[name].Visible = true;
+            }
+
+            Invalidate();
+        }
+
+        /// <summary>
+        /// Restore columns hidden by the last drag-to-hide action.
+        /// </summary>
+        public void RestoreLastHiddenColumns()
+        {
+            RestoreColumns(_lastHiddenColumnNames);
+        }
+
+        private bool TryHitTestHeaderBandCell(Point clientPoint, out HeaderBandCellByName cell, out Rectangle bandRect)
+        {
+            cell = null;
+            bandRect = Rectangle.Empty;
+
+            if (HeaderLayout == null || HeaderLayout.Cells == null || HeaderLayout.Cells.Count == 0)
+                return false;
+
+            // Must be inside header area
+            if (clientPoint.Y < 0 || clientPoint.Y > this.ColumnHeadersHeight)
+                return false;
+
+            int headerRowHeight = Math.Max(16, HeaderLayout.HeaderRowHeight);
+
+            foreach (var c in HeaderLayout.Cells)
+            {
+                if (c == null || c.ColumnNames == null || c.ColumnNames.Count == 0) continue;
+
+                // resolve columns (skip hidden columns)
+                var cols = new List<DataGridViewColumn>();
+                bool ok = true;
+                foreach (string name in c.ColumnNames)
+                {
+                    if (!this.Columns.Contains(name)) { ok = false; break; }
+                    var col = this.Columns[name];
+                    if (col == null || !col.Visible) { ok = false; break; }
+                    cols.Add(col);
+                }
+                if (!ok || cols.Count == 0) continue;
+
+                // union rect across columns (header row = -1)
+                Rectangle rect = Rectangle.Empty;
+                foreach (var col in cols.OrderBy(x => x.DisplayIndex))
+                {
+                    Rectangle r = GetCellDisplayRectangle(col.Index, -1, true);
+                    if (r.Width <= 0 || r.Height <= 0) continue;
+                    rect = rect.IsEmpty ? r : Rectangle.Union(rect, r);
+                }
+                if (rect.IsEmpty) continue;
+
+                int y = rect.Top + c.BandRow * headerRowHeight;
+                int h = c.BandRowSpan * headerRowHeight;
+
+                var rBand = new Rectangle(rect.Left, y, rect.Width, h);
+
+                if (rBand.Contains(clientPoint))
+                {
+                    cell = c;
+                    bandRect = rBand;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsPointAboveGridTop(Point clientPoint)
+        {
+            // "outside" condition requested: drag to outside/top of grid
+            return clientPoint.Y < 0;
+        }
+
+        private void OnMouseDownHeaderBandDrag(object sender, MouseEventArgs e)
+        {
+            // Only left mouse, and only when not editing
+            if (IsCurrentCellInEditMode) return;
+            if (e.Button != MouseButtons.Left) return;
+
+            // Only allow starting drag in the header area over a band cell
+            HeaderBandCellByName hitCell;
+            Rectangle hitRect;
+            if (!TryHitTestHeaderBandCell(e.Location, out hitCell, out hitRect))
+                return;
+
+            _headerBandDragging = true;
+            _dragBandCell = hitCell;
+            _dragStartPoint = e.Location;
+            _lastMousePoint = e.Location;
+
+            // capture mouse so we keep receiving move/up even when outside
+            this.Capture = true;
+
+            // Optional: change cursor to indicate dragging
+            this.Cursor = Cursors.SizeAll;
+
+            Invalidate(); // to draw drag indicator if you want
+        }
+
+        private void OnMouseMoveHeaderBandDrag(object sender, MouseEventArgs e)
+        {
+            if (!_headerBandDragging) return;
+
+            _lastMousePoint = e.Location;
+
+            // Cursor feedback
+            if (IsPointAboveGridTop(e.Location))
+                this.Cursor = Cursors.No;     // means "drop here to hide"
+            else
+                this.Cursor = Cursors.SizeAll;
+
+            Invalidate();
+        }
+
+        private void OnMouseUpHeaderBandDrag(object sender, MouseEventArgs e)
+        {
+            if (!_headerBandDragging) return;
+
+            _headerBandDragging = false;
+            this.Capture = false;
+            this.Cursor = Cursors.Default;
+
+            var cell = _dragBandCell;
+            _dragBandCell = null;
+
+            if (cell == null) { Invalidate(); return; }
+
+            // If dropped above the grid => hide
+            if (IsPointAboveGridTop(e.Location))
+            {
+                // Hide all columns in that band cell
+                HideColumns(cell.ColumnNames);
+            }
+
+            Invalidate();
         }
     }
 }
