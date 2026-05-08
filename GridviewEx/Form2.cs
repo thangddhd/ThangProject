@@ -91,6 +91,13 @@ namespace GridviewEx
             // Example header layout (2 rows)
             _grid.SetHeaderLayout(BuildHeaderLikeImage_Correct2());
 
+            // col draw border
+            string col2 = "Y_" + (_yearStart + 5).ToString();
+            _grid.SetRightBorderColumns(new[]
+{
+                col2
+            });
+
             // Add to form
             this.splitContainer1.Panel2.Controls.Add(_grid);
 
@@ -588,6 +595,13 @@ namespace GridviewEx
 
             // If you rely on merges after changing columns:
             _grid.RebuildMerges();
+
+            // draw coll
+            string col = "Y_" + (_yearStart + 5).ToString();
+            _grid.SetRightBorderColumns(new[]
+{
+                col
+            });
 
             _grid.Invalidate();
         }

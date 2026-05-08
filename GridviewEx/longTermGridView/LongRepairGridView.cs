@@ -108,7 +108,7 @@ namespace coms.COMSK.ui.common
         /// Returns column names hidden by the last drag-to-hide action.
         /// </summary>
         public IReadOnlyList<string> LastHiddenColumnNames => _lastHiddenColumnNames.AsReadOnly();
-
+        private readonly HashSet<string> _rightBorderColumnNames = new HashSet<string>(StringComparer.Ordinal);
         public LongRepairGridView()
         {
             HeaderLayout = null;
@@ -460,7 +460,9 @@ namespace coms.COMSK.ui.common
             DataGridViewColumn col = Columns[e.ColumnIndex];
             string colName = col != null ? col.Name : null;
 
-            // programmatic overrides
+            // =========================
+            // 1. Programmatic overrides
+            // =========================
             if (!string.IsNullOrEmpty(colName))
             {
                 CellStyleOverride ov;
@@ -472,35 +474,37 @@ namespace coms.COMSK.ui.common
                 }
             }
 
-            // range selection highlight (same column, multiple rows)
+            // =========================
+            // 2. Detect selection state (ONLY MARK, don't apply yet)
+            // =========================
+            bool isSelectedByDrag = false;
+
+            // vertical range (same column)
             if (_hasRowRangeSelection && e.ColumnIndex == _rangeColumnIndex)
             {
                 int r1 = Math.Min(_rangeAnchorRow, _rangeEndRow);
                 int r2 = Math.Max(_rangeAnchorRow, _rangeEndRow);
 
                 if (e.RowIndex >= r1 && e.RowIndex <= r2)
-                {
-                    e.CellStyle.BackColor = Color.Lavender;
-                }
+                    isSelectedByDrag = true;
             }
-            // horizontal selection highlight (multi rows, multiple columns) while dragging
+            // horizontal drag selection
             else if (_hasDragSelection && _selDisplayColMin >= 0 && _selDisplayColMax >= 0 && _hasRowRangeSelection)
             {
                 int r1 = Math.Min(_rangeAnchorRow, _rangeEndRow);
                 int r2 = Math.Max(_rangeAnchorRow, _rangeEndRow);
 
-                // only apply to the selected row range
                 if (e.RowIndex >= r1 && e.RowIndex <= r2)
                 {
                     int di = col.DisplayIndex;
                     if (di >= _selDisplayColMin && di <= _selDisplayColMax)
-                    {
-                        e.CellStyle.BackColor = Color.Lavender;
-                    }
+                        isSelectedByDrag = true;
                 }
             }
 
-            // ReserveGridView merged: CellStyleNeeded (kept)
+            // =========================
+            // 3. CellStyleNeeded (business rule)
+            // =========================
             if (CellStyleNeeded != null)
             {
                 var rowData = GetRowDataOrNull(e.RowIndex);
@@ -521,17 +525,21 @@ namespace coms.COMSK.ui.common
 
                 CellStyleNeeded(this, styleArgs);
 
-                if (styleArgs.BackColor.HasValue) e.CellStyle.BackColor = styleArgs.BackColor.Value;
-                if (styleArgs.ForeColor.HasValue) e.CellStyle.ForeColor = styleArgs.ForeColor.Value;
+                if (styleArgs.BackColor.HasValue)
+                    e.CellStyle.BackColor = styleArgs.BackColor.Value;
+
+                if (styleArgs.ForeColor.HasValue)
+                    e.CellStyle.ForeColor = styleArgs.ForeColor.Value;
             }
 
-            // Button column visuals (text + base colors)
+            // =========================
+            // 4. Button style (giữ nguyên logic cũ)
+            // =========================
             try
             {
                 var btnArgs = RaiseButtonCellStyleNeeded(e.RowIndex, e.ColumnIndex, e.Value);
                 if (btnArgs != null)
                 {
-                    // Visible=false => visually hide content
                     if (btnArgs.Visible.HasValue && btnArgs.Visible.Value == false)
                     {
                         e.Value = string.Empty;
@@ -546,7 +554,6 @@ namespace coms.COMSK.ui.common
 
                     if (btnArgs.DisabledStyle)
                     {
-                        // default disabled look (visual only)
                         if (!btnArgs.BackColor.HasValue) e.CellStyle.BackColor = Color.Gainsboro;
                         if (!btnArgs.ForeColor.HasValue) e.CellStyle.ForeColor = Color.DimGray;
                     }
@@ -554,7 +561,17 @@ namespace coms.COMSK.ui.common
             }
             catch { }
 
-            // keep old LongRepairGridView behavior (always neutral selection colors)
+            // =========================
+            // 5. 🔥 FINAL OVERRIDE: selection MUST WIN
+            // =========================
+            if (isSelectedByDrag)
+            {
+                e.CellStyle.BackColor = Blend(Color.Lavender, Color.Black, 0.1f);
+            }
+
+            // =========================
+            // 6. Keep neutral selection behavior
+            // =========================
             e.CellStyle.SelectionBackColor = e.CellStyle.BackColor;
             e.CellStyle.SelectionForeColor = e.CellStyle.ForeColor;
         }
@@ -563,7 +580,12 @@ namespace coms.COMSK.ui.common
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
 
-            // ReserveGridView merged: if current cell is in edit mode, don't custom paint it
+            bool needsRightBorder = false;
+            try { needsRightBorder = HasRightBorder(e.ColumnIndex); } catch { }
+
+            // If current cell is in edit mode, don't custom paint it.
+            // BUT: we still want the right border => draw via grid line? (not safe).
+            // Best: do nothing here; the editing control will cover the cell anyway.
             if (IsCurrentCellInEditMode &&
                 CurrentCell != null &&
                 CurrentCell.RowIndex == e.RowIndex &&
@@ -572,10 +594,10 @@ namespace coms.COMSK.ui.common
                 return;
             }
 
-            // Rounded gradient button rendering using ButtonCellStyleNeeded
+            // --- 1) Button rendering path ---
             try
             {
-                if (e.RowIndex >= 0 && e.ColumnIndex >= 0 && Columns[e.ColumnIndex] is DataGridViewButtonColumn)
+                if (Columns[e.ColumnIndex] is DataGridViewButtonColumn)
                 {
                     var args = RaiseButtonCellStyleNeeded(e.RowIndex, e.ColumnIndex, null);
                     if (args != null)
@@ -583,13 +605,12 @@ namespace coms.COMSK.ui.common
                         // visible=false => draw nothing (just background + border)
                         if (args.Visible.HasValue && args.Visible.Value == false)
                         {
-                            e.PaintBackground(e.ClipBounds, true);
-                            e.Paint(e.ClipBounds, DataGridViewPaintParts.Border);
+                            e.Paint(e.ClipBounds, DataGridViewPaintParts.All);
+                            if (needsRightBorder) PaintRightBorderIfNeeded(e);
                             e.Handled = true;
                             return;
                         }
 
-                        // if parent didn't request anything, let default painting happen
                         bool wants =
                             args.DisabledStyle ||
                             args.BackColor.HasValue ||
@@ -621,6 +642,8 @@ namespace coms.COMSK.ui.common
                                 pressed,
                                 radius: 4);
 
+                            if (needsRightBorder) PaintRightBorderIfNeeded(e);
+                            // DrawRoundedGradientButton already sets Handled=true
                             return;
                         }
                     }
@@ -628,8 +651,7 @@ namespace coms.COMSK.ui.common
             }
             catch { }
 
-            // NEW: if the cell is part of a merged region, do NOT allow CellDisplayTextNeeded
-            // to short-circuit painting, otherwise merged visuals get broken.
+            // --- 2) Detect merged cell ---
             bool isMergedCell = false;
             try
             {
@@ -639,135 +661,151 @@ namespace coms.COMSK.ui.common
             }
             catch { }
 
-            // ReserveGridView merged: custom display text paint hook (takes precedence)
-            // BUT: not allowed for merged cells (merged painter must handle them)
-            if (!isMergedCell && !e.Handled && CellDisplayTextNeeded != null)
+            // --- 3) Custom display text path (non-merged only) ---
+            if (!isMergedCell && CellDisplayTextNeeded != null)
             {
-                var rowData = GetRowDataOrNull(e.RowIndex);
-
-                bool isCurrentCell = (CurrentCell != null &&
-                                      CurrentCell.RowIndex == e.RowIndex &&
-                                      CurrentCell.ColumnIndex == e.ColumnIndex);
-
-                bool isReadOnly = IsCellReadOnlyByRule(e.RowIndex, e.ColumnIndex);
-
-                object rawValue = null;
-                try { rawValue = this[e.ColumnIndex, e.RowIndex].Value; } catch (Exception) { }
-
-                var displayArgs = new ReserveCellDisplayTextNeededEventArgs(
-                    e.RowIndex,
-                    e.ColumnIndex,
-                    rowData,
-                    rawValue,
-                    isCurrentCell,
-                    isReadOnly);
-
-                CellDisplayTextNeeded(this, displayArgs);
-
-                if (displayArgs.DisplayText != null)
+                try
                 {
-                    e.PaintBackground(e.ClipBounds, true);
-                    e.Paint(e.ClipBounds, DataGridViewPaintParts.Border);
+                    var rowData = GetRowDataOrNull(e.RowIndex);
 
-                    var textColor = e.State.HasFlag(DataGridViewElementStates.Selected)
-                        ? e.CellStyle.SelectionForeColor
-                        : e.CellStyle.ForeColor;
+                    bool isCurrentCell = (CurrentCell != null &&
+                                          CurrentCell.RowIndex == e.RowIndex &&
+                                          CurrentCell.ColumnIndex == e.ColumnIndex);
 
-                    var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+                    bool isReadOnly = IsCellReadOnlyByRule(e.RowIndex, e.ColumnIndex);
 
-                    switch (e.CellStyle.Alignment)
+                    object rawValue = null;
+                    try { rawValue = this[e.ColumnIndex, e.RowIndex].Value; } catch { }
+
+                    var displayArgs = new ReserveCellDisplayTextNeededEventArgs(
+                        e.RowIndex,
+                        e.ColumnIndex,
+                        rowData,
+                        rawValue,
+                        isCurrentCell,
+                        isReadOnly);
+
+                    CellDisplayTextNeeded(this, displayArgs);
+
+                    if (displayArgs.DisplayText != null)
                     {
-                        case DataGridViewContentAlignment.BottomRight:
-                        case DataGridViewContentAlignment.MiddleRight:
-                        case DataGridViewContentAlignment.TopRight:
-                            flags |= TextFormatFlags.Right;
-                            break;
+                        // paint everything normally first
+                        e.PaintBackground(e.ClipBounds, true);
+                        e.Paint(e.ClipBounds, DataGridViewPaintParts.Border);
 
-                        case DataGridViewContentAlignment.BottomCenter:
-                        case DataGridViewContentAlignment.MiddleCenter:
-                        case DataGridViewContentAlignment.TopCenter:
-                            flags |= TextFormatFlags.HorizontalCenter;
-                            break;
+                        var textColor = e.State.HasFlag(DataGridViewElementStates.Selected)
+                            ? e.CellStyle.SelectionForeColor
+                            : e.CellStyle.ForeColor;
 
-                        default:
-                            flags |= TextFormatFlags.Left;
-                            break;
+                        var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+
+                        switch (e.CellStyle.Alignment)
+                        {
+                            case DataGridViewContentAlignment.BottomRight:
+                            case DataGridViewContentAlignment.MiddleRight:
+                            case DataGridViewContentAlignment.TopRight:
+                                flags |= TextFormatFlags.Right;
+                                break;
+                            case DataGridViewContentAlignment.BottomCenter:
+                            case DataGridViewContentAlignment.MiddleCenter:
+                            case DataGridViewContentAlignment.TopCenter:
+                                flags |= TextFormatFlags.HorizontalCenter;
+                                break;
+                            default:
+                                flags |= TextFormatFlags.Left;
+                                break;
+                        }
+
+                        TextRenderer.DrawText(
+                            e.Graphics,
+                            displayArgs.DisplayText,
+                            e.CellStyle.Font,
+                            e.CellBounds,
+                            textColor,
+                            flags);
+
+                        if (needsRightBorder) PaintRightBorderIfNeeded(e);
+
+                        e.Handled = true;
+                        return;
                     }
+                }
+                catch { }
+            }
 
-                    TextRenderer.DrawText(
-                        e.Graphics,
-                        displayArgs.DisplayText,
-                        e.CellStyle.Font,
-                        e.CellBounds,
-                        textColor,
-                        flags);
+            // --- 4) Merged cell paint path ---
+            if (MergingEnabled)
+            {
+                CellKey owner;
+                if (_mergeStore.TryGetOwner(e.RowIndex, e.ColumnIndex, out owner))
+                {
+                    MergeRegion region;
+                    if (_mergeStore.TryGetRegionByOwner(owner, out region) && region != null)
+                    {
+                        Rectangle mergedRect = GetMergedRect(region);
+                        if (!mergedRect.IsEmpty)
+                        {
+                            // Always paint something for this cell to avoid black and missing visuals
+                            e.PaintBackground(e.ClipBounds, true);
 
-                    e.Handled = true;
-                    return;
+                            // Fill merged background (only the part being repainted)
+                            Rectangle paintRect = Rectangle.Intersect(mergedRect, e.CellBounds);
+                            if (!paintRect.IsEmpty)
+                            {
+                                using (SolidBrush back = new SolidBrush(e.CellStyle.BackColor))
+                                    e.Graphics.FillRectangle(back, paintRect);
+                            }
+
+                            // Draw text from owner value, but clip to current cell repaint area
+                            object val = this[owner.Col, owner.Row].FormattedValue;
+                            string text = Convert.ToString(val) ?? string.Empty;
+
+                            Rectangle textRect = Rectangle.Inflate(mergedRect, -2, -2);
+
+                            Region oldClip = e.Graphics.Clip;
+                            try
+                            {
+                                e.Graphics.SetClip(e.CellBounds);
+
+                                TextRenderer.DrawText(
+                                    e.Graphics,
+                                    text,
+                                    e.CellStyle.Font ?? Font,
+                                    textRect,
+                                    e.CellStyle.ForeColor,
+                                    TextFormatFlags.Left |
+                                    TextFormatFlags.VerticalCenter |
+                                    TextFormatFlags.EndEllipsis |
+                                    TextFormatFlags.NoClipping);
+                            }
+                            finally
+                            {
+                                e.Graphics.Clip = oldClip;
+                                if (oldClip != null) oldClip.Dispose();
+                            }
+
+                            DrawMergedOuterBorderIfNeeded(e, region, mergedRect);
+
+                            if (needsRightBorder) PaintRightBorderIfNeeded(e);
+
+                            e.Handled = true;
+                            return;
+                        }
+                    }
                 }
             }
 
-            // Existing LongRepairGridView merge paint (only if not already handled above)
-            if (e.Handled) return;
-            if (!MergingEnabled) return;
-
-            CellKey owner;
-            if (!_mergeStore.TryGetOwner(e.RowIndex, e.ColumnIndex, out owner))
-                return;
-
-            MergeRegion region;
-            if (!_mergeStore.TryGetRegionByOwner(owner, out region) || region == null)
-                return;
-
-            Rectangle mergedRect = GetMergedRect(region);
-            if (mergedRect.IsEmpty)
+            // --- 5) Default cells: if we need a right border, we must fully paint then overlay border ---
+            if (needsRightBorder)
             {
+                // paint default cell completely, then overlay the right border line
+                e.Paint(e.ClipBounds, DataGridViewPaintParts.All);
+                PaintRightBorderIfNeeded(e);
                 e.Handled = true;
                 return;
             }
 
-            // Always paint something for this cell to avoid black and missing visuals
-            e.PaintBackground(e.ClipBounds, true);
-
-            // Fill merged background (only the part being repainted)
-            Rectangle paintRect = Rectangle.Intersect(mergedRect, e.CellBounds);
-            if (!paintRect.IsEmpty)
-            {
-                using (SolidBrush back = new SolidBrush(e.CellStyle.BackColor))
-                    e.Graphics.FillRectangle(back, paintRect);
-            }
-
-            // Draw text from owner value, but clip to current cell repaint area
-            object val = this[owner.Col, owner.Row].FormattedValue;
-            string text = Convert.ToString(val) ?? string.Empty;
-
-            Rectangle textRect = Rectangle.Inflate(mergedRect, -2, -2);
-
-            Region oldClip = e.Graphics.Clip;
-            try
-            {
-                e.Graphics.SetClip(e.CellBounds);
-
-                TextRenderer.DrawText(
-                    e.Graphics,
-                    text,
-                    e.CellStyle.Font ?? Font,
-                    textRect,
-                    e.CellStyle.ForeColor,
-                    TextFormatFlags.Left |
-                    TextFormatFlags.VerticalCenter |
-                    TextFormatFlags.EndEllipsis |
-                    TextFormatFlags.NoClipping);
-            }
-            finally
-            {
-                e.Graphics.Clip = oldClip;
-                if (oldClip != null) oldClip.Dispose();
-            }
-
-            DrawMergedOuterBorderIfNeeded(e, region, mergedRect);
-
-            e.Handled = true;
+            // else: do nothing => default painting
         }
 
         private Rectangle GetMergedRect(MergeRegion region)
@@ -1260,6 +1298,32 @@ namespace coms.COMSK.ui.common
                     cell.ForeColor,
                     bandRect,
                     center: true);
+
+                // thick right border for band header
+                try
+                {
+                    // if any column in this band is marked, draw a right border at the band's right edge
+                    bool bandHasRightBorder = false;
+                    foreach (var cn in cell.ColumnNames)
+                    {
+                        if (_rightBorderColumnNames.Contains(cn))
+                        {
+                            bandHasRightBorder = true;
+                            break;
+                        }
+                    }
+
+                    if (bandHasRightBorder)
+                    {
+                        using (var pen = new Pen(Color.Black, 2))
+                        {
+                            pen.Alignment = System.Drawing.Drawing2D.PenAlignment.Inset;
+                            int x = bandRect.Right - 1;
+                            e.Graphics.DrawLine(pen, x, bandRect.Top, x, bandRect.Bottom);
+                        }
+                    }
+                }
+                catch { }
 
                 // Drag indicator (optional)
                 if (_headerBandDragging && _dragBandCell != null)
@@ -1848,6 +1912,51 @@ namespace coms.COMSK.ui.common
             }
 
             Invalidate();
+        }
+
+        /// <summary>
+        /// Set column names that should have a thick black RIGHT border (header + cells).
+        /// </summary>
+        public void SetRightBorderColumns(IEnumerable<string> columnNames)
+        {
+            _rightBorderColumnNames.Clear();
+            if (columnNames != null)
+            {
+                foreach (var n in columnNames)
+                {
+                    if (!string.IsNullOrWhiteSpace(n))
+                        _rightBorderColumnNames.Add(n);
+                }
+            }
+            Invalidate();
+        }
+
+        private bool HasRightBorder(int columnIndex)
+        {
+            if (columnIndex < 0 || columnIndex >= Columns.Count) return false;
+            var c = Columns[columnIndex];
+            if (c == null) return false;
+            return _rightBorderColumnNames.Contains(c.Name);
+        }
+
+        private void PaintRightBorderIfNeeded(DataGridViewCellPaintingEventArgs e)
+        {
+            try
+            {
+                if (!HasRightBorder(e.ColumnIndex)) return;
+
+                // draw on top of everything
+                int thickness = 2; // adjust if you want thicker
+                int x = e.CellBounds.Right - 1;
+
+                using (var pen = new Pen(Color.Black, thickness))
+                {
+                    // make sure the line is inside the cell bounds
+                    pen.Alignment = System.Drawing.Drawing2D.PenAlignment.Inset;
+                    e.Graphics.DrawLine(pen, x, e.CellBounds.Top, x, e.CellBounds.Bottom);
+                }
+            }
+            catch { }
         }
     }
 }
