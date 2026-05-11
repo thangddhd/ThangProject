@@ -746,7 +746,7 @@ namespace coms.COMSK.ui.common
                         if (!mergedRect.IsEmpty)
                         {
                             // Always paint something for this cell to avoid black and missing visuals
-                            e.PaintBackground(e.ClipBounds, true);
+                            e.PaintBackground(e.CellBounds, true);
 
                             // Fill merged background (only the part being repainted)
                             Rectangle paintRect = Rectangle.Intersect(mergedRect, e.CellBounds);
@@ -829,11 +829,9 @@ namespace coms.COMSK.ui.common
 
         private void DrawMergedOuterBorderIfNeeded(DataGridViewCellPaintingEventArgs e, MergeRegion region, Rectangle mergedRect)
         {
-            // Determine region boundaries in row indexes
             int topRow = region.RowStart;
             int bottomRow = region.RowStart + region.RowSpan - 1;
 
-            // Determine left/right boundary columns by DISPLAY order
             int leftCol = region.ColumnIndexes
                 .Select(ci => this.Columns[ci])
                 .OrderBy(c => c.DisplayIndex)
@@ -844,44 +842,40 @@ namespace coms.COMSK.ui.common
                 .OrderByDescending(c => c.DisplayIndex)
                 .First().Index;
 
-            // For this painted cell, get its cell bounds (for segment drawing)
             Rectangle cellRect = e.CellBounds;
             if (cellRect.Width <= 0 || cellRect.Height <= 0) return;
 
-            using (Pen pen = new Pen(this.GridColor))
+            int left = cellRect.Left;
+            int top = cellRect.Top;
+            int right = cellRect.Right - 1;
+            int bottom = cellRect.Bottom - 1;
+
+            using (Pen pen = new Pen(this.GridColor, 1f))
             {
-                // Top edge segment
+                pen.Alignment = System.Drawing.Drawing2D.PenAlignment.Inset;
+
+                // top border
                 if (e.RowIndex == topRow)
                 {
-                    e.Graphics.DrawLine(pen,
-                        cellRect.Left, mergedRect.Top,
-                        cellRect.Right - 1, mergedRect.Top);
+                    e.Graphics.DrawLine(pen, left, top, right, top);
                 }
 
-                // Bottom edge segment
+                // bottom border
                 if (e.RowIndex == bottomRow)
                 {
-                    int y = mergedRect.Bottom - 1;
-                    e.Graphics.DrawLine(pen,
-                        cellRect.Left, y,
-                        cellRect.Right - 1, y);
+                    e.Graphics.DrawLine(pen, left, bottom, right, bottom);
                 }
 
-                // Left edge segment
+                // left border
                 if (e.ColumnIndex == leftCol)
                 {
-                    e.Graphics.DrawLine(pen,
-                        mergedRect.Left, cellRect.Top,
-                        mergedRect.Left, cellRect.Bottom - 1);
+                    e.Graphics.DrawLine(pen, left, top, left, bottom);
                 }
 
-                // Right edge segment
+                // right border
                 if (e.ColumnIndex == rightCol)
                 {
-                    int x = mergedRect.Right - 1;
-                    e.Graphics.DrawLine(pen,
-                        x, cellRect.Top,
-                        x, cellRect.Bottom - 1);
+                    e.Graphics.DrawLine(pen, right, top, right, bottom);
                 }
             }
         }
