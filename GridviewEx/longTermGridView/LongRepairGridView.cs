@@ -602,10 +602,14 @@ namespace coms.COMSK.ui.common
                     var args = RaiseButtonCellStyleNeeded(e.RowIndex, e.ColumnIndex, null);
                     if (args != null)
                     {
-                        // visible=false => draw nothing (just background + border)
+                        // visible=false => draw as normal empty cell, NOT as a button
                         if (args.Visible.HasValue && args.Visible.Value == false)
                         {
-                            e.Paint(e.ClipBounds, DataGridViewPaintParts.All);
+                            e.Paint(
+                                e.ClipBounds,
+                                DataGridViewPaintParts.Background |
+                                DataGridViewPaintParts.Border);
+
                             if (needsRightBorder) PaintRightBorderIfNeeded(e);
                             e.Handled = true;
                             return;
@@ -643,7 +647,6 @@ namespace coms.COMSK.ui.common
                                 radius: 4);
 
                             if (needsRightBorder) PaintRightBorderIfNeeded(e);
-                            // DrawRoundedGradientButton already sets Handled=true
                             return;
                         }
                     }
