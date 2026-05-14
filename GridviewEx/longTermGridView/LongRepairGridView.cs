@@ -854,12 +854,12 @@ namespace coms.COMSK.ui.common
             using (Pen pen = new Pen(this.GridColor))
             {
                 // Top edge segment
-                if (e.RowIndex == topRow)
+                /*if (e.RowIndex == topRow)
                 {
                     e.Graphics.DrawLine(pen,
                         cellRect.Left, mergedRect.Top,
                         cellRect.Right - 1, mergedRect.Top);
-                }
+                }*/
 
                 // Bottom edge segment
                 if (e.RowIndex == bottomRow)
@@ -871,12 +871,12 @@ namespace coms.COMSK.ui.common
                 }
 
                 // Left edge segment
-                if (e.ColumnIndex == leftCol)
+                /*if (e.ColumnIndex == leftCol)
                 {
                     e.Graphics.DrawLine(pen,
                         mergedRect.Left, cellRect.Top,
                         mergedRect.Left, cellRect.Bottom - 1);
-                }
+                }*/
 
                 // Right edge segment
                 if (e.ColumnIndex == rightCol)

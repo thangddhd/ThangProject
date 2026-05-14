@@ -415,38 +415,54 @@ namespace GridviewEx
             var list = new BindingList<testObj>();
             var obj = new testObj("A", "A1", "X", "K", 10, 40, 20, 30);
             obj.ConstructionTypeName = "仮設";
+            obj.ConstructionItemName = "name1";
+            obj.ConstructionCategoryName = "cate1";
             list.Add(obj);
             obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
             obj.ConstructionTypeName = "仮設";
+            obj.ConstructionItemName = "name1";
+            obj.ConstructionCategoryName = "cate1";
             list.Add(obj);
             obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
             obj.ConstructionTypeName = "仮設";
+            obj.ConstructionItemName = "name2";
+            obj.ConstructionCategoryName = "cate2";
             list.Add(obj);
             obj = new testObj("B", "B1", "Y", "K", 13, 43, 23, 33);
             obj.ConstructionTypeName = "仮設";
+            obj.ConstructionItemName = "name2";
+            obj.ConstructionCategoryName = "cate2";
             list.Add(obj);
             obj = new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34);
             obj.ConstructionTypeName = "仮設";
+            obj.ConstructionItemName = "name2";
+            obj.ConstructionCategoryName = "cate2";
             list.Add(obj);
 
             obj = new testObj("A", "A1", "X", "K", 10, 40, 20, 30);
             obj.ConstructionTypeName = "仮設";
+            obj.ConstructionCategoryName = "cate2";
             list.Add(obj);
             obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
             obj.ConstructionTypeName = "建築";
+            obj.ConstructionCategoryName = "cate3";
             list.Add(obj);
             obj = new testObj("A", "A1", "Y", "K", 12, 42, 22, 32);
             obj.ConstructionTypeName = "建築";
+            obj.ConstructionCategoryName = "cate3";
             list.Add(obj);
             obj = new testObj("B", "B1", "Y", "K", 13, 43, 23, 33);
             obj.ConstructionTypeName = "建築";
+            obj.ConstructionCategoryName = "cate3";
             list.Add(obj);
             obj = new testObj("B", "B1", "Y", "Z", 14, 44, 24, 34);
             obj.ConstructionTypeName = "建築";
+            obj.ConstructionCategoryName = "cate4";
             list.Add(obj);
 
             obj = new testObj("A", "A1", "X", "K", 10, 40, 20, 30);
             obj.ConstructionTypeName = "建築";
+            obj.ConstructionCategoryName = "cate4";
             list.Add(obj);
             obj = new testObj("A", "A1", "X", "K", 11, 41, 21, 31);
             obj.ConstructionTypeName = "建築";
@@ -620,9 +636,10 @@ namespace GridviewEx
             if (row == null || nextRow == null) return false;
 
             if (columnName == "bgcolConstructionType") return row.ConstructionTypeName == nextRow.ConstructionTypeName;
-            if (columnName == "Column2") return row.Column2 == nextRow.Column2;
-            if (columnName == "Column3") return row.Column3 == nextRow.Column3;
-            if (columnName == "Column4") return row.Column4 == nextRow.Column4;
+            if (columnName == "bgcolConstructionItem") return row.ConstructionItemName == nextRow.ConstructionItemName;
+            if (columnName == "bgcolConstructionCategory") return row.ConstructionCategoryName == nextRow.ConstructionCategoryName;
+            if (columnName == "bgcolConstructionPosition") return row.ConstructionPositionName == nextRow.ConstructionPositionName;
+            if (columnName == "bgcolConstructionRegion") return row.ConstructionRegionName == nextRow.ConstructionRegionName;
 
             return false;
         }

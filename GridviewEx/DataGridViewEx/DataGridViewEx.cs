@@ -2098,7 +2098,7 @@ namespace coms.COMMON.ui
             DataGridViewColumn column,
             Color back,
             Color fore
-        )
+)
         {
             var cell = this.Rows[e.RowIndex].Cells[e.ColumnIndex] as DataGridViewComboBoxCell;
             if (cell == null)
@@ -2107,34 +2107,32 @@ namespace coms.COMMON.ui
                 return;
             }
 
-            // =========================================================
-            // NEW: allow parent form to change enabled/readonly/color/etc
-            // =========================================================
+            var row = this.Rows[e.RowIndex];
+
+            // ---------- event / enabled / readonly ----------
             bool enabled = true;
             bool? forceReadOnly = null;
             Color overrideBack = Color.Empty;
 
             if (this.ComboboxColumnEdit != null)
             {
-                var args = new ComboboxColumnEditEventArgs(column, this.Rows[e.RowIndex], this.Rows[e.RowIndex].DataBoundItem);
+                var args = new ComboboxColumnEditEventArgs(column, row, row.DataBoundItem);
 
-                // default state from current cell
-                args.Enabled = !cell.ReadOnly;
-                args.ReadOnly = null;
+                // default state
+                args.Enabled = true;
                 args.BackColor = Color.Empty;
+                // if you added ReadOnly in your patched version:
+                // args.ReadOnly = null;
 
-                // fire event
                 RaiseComboboxColumnEdit(args);
 
                 enabled = args.Enabled;
-                forceReadOnly = args.ReadOnly;
                 overrideBack = args.BackColor;
 
-                // apply readonly logic to the cell (so it affects behavior + painting)
-                // Rule:
-                // - Enabled=false => must be readonly
-                // - ReadOnly=true => readonly
-                // - ReadOnly=false => editable (unless Enabled=false)
+                // if you added ReadOnly:
+                // forceReadOnly = args.ReadOnly;
+
+                // Apply: Enabled=false => readonly
                 if (!enabled)
                 {
                     cell.ReadOnly = true;
@@ -2144,52 +2142,49 @@ namespace coms.COMMON.ui
                     cell.ReadOnly = forceReadOnly.Value;
                 }
 
-                // optional: allow overriding datasouce (if you want)
-                // (Only apply when provided to avoid breaking existing binding)
+                // optional datasource override (only if provided)
                 if (args.DataSource != null)
                 {
                     cell.DataSource = args.DataSource;
                     if (args.DisplayMember != null) cell.DisplayMember = args.DisplayMember;
                     if (args.ValueMember != null) cell.ValueMember = args.ValueMember;
                 }
-
-                // optional: if you want to show different text without changing value,
-                // you can use args.TextValue, but your GetComboDisplayText() returns by value.
-                // So here we will prefer args.TextValue if provided.
             }
 
+            // ---------- text ----------
             string text = GetComboDisplayText(cell);
-            if (this.ComboboxColumnEdit != null)
-            {
-                // re-create args? No. Keep simple: if you need TextValue, do it via CellFormatting instead.
-                // But if you really want, you can store it in cell.Tag; not doing that here.
-            }
 
-            Rectangle rect = e.CellBounds;
-
-            bool isReadOnly = cell.ReadOnly;
+            // ---------- background (FIX HERE) ----------
+            // IMPORTANT: 'back' is already computed by DataGridViewEx_CellPainting:
+            // - separate row style
+            // - hover
+            // - selected row style
+            // - RowBackColorNeeded / CellBackColorNeeded
+            //
+            // So default must be 'back'.
             Color backgroundColor = back;
 
-            // NEW: allow event override background
+            // allow event override
             if (overrideBack != Color.Empty)
                 backgroundColor = overrideBack;
 
-            if (isReadOnly)
-            {
-                // if readonly, keep your original style
+            bool isReadOnly = cell.ReadOnly;
+
+            // If readonly: show readonly gray ONLY when not selected
+            // (When selected, keep selected color, otherwise you get gray + white text)
+            if (isReadOnly && !row.Selected)
                 backgroundColor = (overrideBack != Color.Empty) ? overrideBack : DataGridViewExHelper.READONLY_COLOR;
-            }
 
             using (var b = new SolidBrush(backgroundColor))
-            {
-                e.Graphics.FillRectangle(b, rect);
-            }
+                e.Graphics.FillRectangle(b, e.CellBounds);
 
+            // ---------- draw text ----------
             TextFormatFlags flags =
                 TextFormatFlags.VerticalCenter |
                 TextFormatFlags.Left |
                 TextFormatFlags.EndEllipsis;
 
+            Rectangle rect = e.CellBounds;
             Rectangle textRect = new Rectangle(rect.X + 3, rect.Y, rect.Width - 20, rect.Height);
 
             TextRenderer.DrawText(
@@ -2201,6 +2196,7 @@ namespace coms.COMMON.ui
                 flags
             );
 
+            // ---------- draw dropdown button ----------
             Rectangle dropRect = new Rectangle(
                 rect.Right - 18,
                 rect.Y + (rect.Height - 16) / 2,
@@ -2208,6 +2204,7 @@ namespace coms.COMMON.ui
                 16
             );
 
+            // show button only when editable
             if (!isReadOnly)
             {
                 ControlPaint.DrawComboButton(
