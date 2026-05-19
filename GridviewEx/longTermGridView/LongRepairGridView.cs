@@ -26,7 +26,8 @@ namespace coms.COMSK.ui.common
         public Color RowHighlightTopBorderColor { get; set; }
         public Color RowHighlightBottomBorderColor { get; set; }
         public int RowHighlightBorderThickness { get { return _rowBorderThickness; } set { _rowBorderThickness = Math.Max(1, value); } }
-
+        //クリックする際に枠が出ることを設定する
+        public bool IsDrawDragRectange { get; set; } = true;
         public event EventHandler<RowCellsDragEventArgs> RowCellsDragCompleted;
 
         public IReadOnlyList<string> LeftColumnNames { get { return _leftColumnNames; } }
@@ -891,7 +892,7 @@ namespace coms.COMSK.ui.common
 
         private void OnRowPostPaint(object sender, DataGridViewRowPostPaintEventArgs e)
         {
-            if (e.RowIndex != HighlightedRowIndex) return;
+            if (e.RowIndex != HighlightedRowIndex || !IsDrawDragRectange) return;
 
             Rectangle rowRect = GetRowDisplayRectangle(e.RowIndex, true);
             if (rowRect.Width <= 0 || rowRect.Height <= 0) return;
