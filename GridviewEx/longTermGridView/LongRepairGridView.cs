@@ -125,6 +125,11 @@ namespace coms.COMSK.ui.common
             MultiSelect = false;
             EnableHeadersVisualStyles = false;
 
+            // lock row height resizing by mouse
+            AllowUserToResizeRows = false;
+            AllowUserToResizeColumns = false;
+            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+
             EnableDoubleBuffering();
 
             // events
@@ -1422,7 +1427,7 @@ namespace coms.COMSK.ui.common
             int rows = Math.Max(1, HeaderLayout.HeaderRowCount);
             int rh = Math.Max(16, HeaderLayout.HeaderRowHeight);
 
-            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.EnableResizing;
+            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             ColumnHeadersHeight = rows * rh;
         }
 
