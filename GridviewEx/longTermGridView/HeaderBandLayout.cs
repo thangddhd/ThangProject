@@ -3,6 +3,13 @@ using System.Drawing;
 
 namespace coms.COMSK.ui.common
 {
+    public enum HeaderBandTextAlignment
+    {
+        Center,
+        Left,
+        Right
+    }
+
     public sealed class HeaderBandLayout
     {
         public int HeaderRowCount { get; set; }
@@ -30,6 +37,8 @@ namespace coms.COMSK.ui.common
 
         public Color BorderColor { get; set; }
         public int BorderThickness { get; set; }
+
+        public HeaderBandTextAlignment TextAlignment { get; set; } = HeaderBandTextAlignment.Center;
 
         public HeaderBandCellByName()
         {

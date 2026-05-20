@@ -90,6 +90,7 @@ namespace coms.COMSK.ui.common
             VerticalRangeSelect,  // same column, different rows
             HorizontalMove        // same row, different columns
         }
+
         private DragMode _dragMode = DragMode.None;
         // Range selection (same column)
         private bool _hasRowRangeSelection;
@@ -1306,7 +1307,7 @@ namespace coms.COMSK.ui.common
                     font,
                     cell.ForeColor,
                     bandRect,
-                    center: true);
+                    cell.TextAlignment);
 
                 // thick right border for band header
                 try
@@ -1357,7 +1358,7 @@ namespace coms.COMSK.ui.common
             Font font,
             Color foreColor,
             Rectangle bounds,
-            bool center)
+            HeaderBandTextAlignment alignment)
         {
             if (string.IsNullOrEmpty(text)) return;
             if (bounds.Width <= 0 || bounds.Height <= 0) return;
@@ -1365,6 +1366,19 @@ namespace coms.COMSK.ui.common
             // padding
             Rectangle r = Rectangle.Inflate(bounds, -2, -2);
             if (r.Width <= 0 || r.Height <= 0) return;
+            switch (alignment)
+            {
+                case HeaderBandTextAlignment.Left:
+                    r = new Rectangle(r.Left + 5, r.Top, Math.Max(0, r.Width - 2), r.Height);
+                    break;
+
+                case HeaderBandTextAlignment.Right:
+                    r = new Rectangle(r.Left, r.Top, Math.Max(0, r.Width - 2), r.Height);
+                    break;
+
+                default:
+                    break;
+            }
 
             // explicit lines only (no auto wrap)
             string[] lines = text.Replace("\r\n", "\n").Split('\n');
@@ -1388,13 +1402,23 @@ namespace coms.COMSK.ui.common
             int startY = r.Top + Math.Max(0, (r.Height - blockHeight) / 2);
 
             TextFormatFlags flagsBase =
-                TextFormatFlags.SingleLine |
-                TextFormatFlags.NoPadding |
-                TextFormatFlags.PreserveGraphicsClipping |
-                TextFormatFlags.VerticalCenter |      // vertical center per-line rect
-                TextFormatFlags.EndEllipsis;          // ellipsis if width not enough
-
-            flagsBase |= center ? TextFormatFlags.HorizontalCenter : TextFormatFlags.Left;
+            TextFormatFlags.SingleLine |
+            TextFormatFlags.NoPadding |
+            TextFormatFlags.PreserveGraphicsClipping |
+            TextFormatFlags.VerticalCenter |
+            TextFormatFlags.EndEllipsis;
+            switch (alignment)
+            {
+                case HeaderBandTextAlignment.Left:
+                    flagsBase |= TextFormatFlags.Left;
+                    break;
+                case HeaderBandTextAlignment.Right:
+                    flagsBase |= TextFormatFlags.Right;
+                    break;
+                default:
+                    flagsBase |= TextFormatFlags.HorizontalCenter;
+                    break;
+            }
 
             for (int i = 0; i < visibleLines; i++)
             {
