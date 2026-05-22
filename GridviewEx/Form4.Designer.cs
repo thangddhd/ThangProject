@@ -34,9 +34,12 @@ namespace GridviewEx
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
             this.panel1 = new System.Windows.Forms.Panel();
             this.dataGridView1 = new System.Windows.Forms.DataGridView();
-            this.tabControl1 = new System.Windows.Forms.TabControl();
+            this.Column1 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.tabControl1 = new coms.COMMON.ui.TabControlEx();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.button1 = new System.Windows.Forms.Button();
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.checkBox1 = new System.Windows.Forms.CheckBox();
             this.dataGridViewTextBoxColumn1 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.reserveGridView1 = new coms.COMMON.ui.ReserveGridView();
             this.Column2 = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -46,10 +49,13 @@ namespace GridviewEx
             this.Column6 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Column7 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Column8 = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Column1 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.checkedComboBox1 = new coms.COMMON.ui.CheckedComboBox();
+            this.dateTimePickerEx31 = new coms.COMMON.ui.DateTimePickerEx3();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.tabControl1.SuspendLayout();
+            this.tabPage1.SuspendLayout();
+            this.tabPage2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.reserveGridView1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -79,10 +85,17 @@ namespace GridviewEx
             this.dataGridView1.Size = new System.Drawing.Size(1980, 87);
             this.dataGridView1.TabIndex = 0;
             // 
+            // Column1
+            // 
+            this.Column1.HeaderText = "Column1";
+            this.Column1.Name = "Column1";
+            // 
             // tabControl1
             // 
             this.tabControl1.Controls.Add(this.tabPage1);
             this.tabControl1.Controls.Add(this.tabPage2);
+            this.tabControl1.DrawMode = System.Windows.Forms.TabDrawMode.OwnerDrawFixed;
+            this.tabControl1.ItemSize = new System.Drawing.Size(60, 18);
             this.tabControl1.Location = new System.Drawing.Point(64, 365);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
@@ -91,6 +104,7 @@ namespace GridviewEx
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.button1);
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
@@ -99,8 +113,18 @@ namespace GridviewEx
             this.tabPage1.Text = "tabPage1";
             this.tabPage1.UseVisualStyleBackColor = true;
             // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(48, 46);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(75, 23);
+            this.button1.TabIndex = 0;
+            this.button1.Text = "button1";
+            this.button1.UseVisualStyleBackColor = true;
+            // 
             // tabPage2
             // 
+            this.tabPage2.Controls.Add(this.checkBox1);
             this.tabPage2.Location = new System.Drawing.Point(4, 22);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
@@ -108,6 +132,16 @@ namespace GridviewEx
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "tabPage2";
             this.tabPage2.UseVisualStyleBackColor = true;
+            // 
+            // checkBox1
+            // 
+            this.checkBox1.AutoSize = true;
+            this.checkBox1.Location = new System.Drawing.Point(53, 48);
+            this.checkBox1.Name = "checkBox1";
+            this.checkBox1.Size = new System.Drawing.Size(80, 16);
+            this.checkBox1.TabIndex = 0;
+            this.checkBox1.Text = "checkBox1";
+            this.checkBox1.UseVisualStyleBackColor = true;
             // 
             // dataGridViewTextBoxColumn1
             // 
@@ -197,16 +231,38 @@ namespace GridviewEx
             this.Column8.HeaderText = "Column8";
             this.Column8.Name = "Column8";
             // 
-            // Column1
+            // checkedComboBox1
             // 
-            this.Column1.HeaderText = "Column1";
-            this.Column1.Name = "Column1";
+            this.checkedComboBox1.BackColor = System.Drawing.SystemColors.HotTrack;
+            this.checkedComboBox1.CheckOnClick = true;
+            this.checkedComboBox1.DropDownHeight = 1;
+            this.checkedComboBox1.FormattingEnabled = true;
+            this.checkedComboBox1.IntegralHeight = false;
+            this.checkedComboBox1.Location = new System.Drawing.Point(476, 396);
+            this.checkedComboBox1.MaxDropDownHeight = 200;
+            this.checkedComboBox1.Name = "checkedComboBox1";
+            this.checkedComboBox1.Size = new System.Drawing.Size(121, 20);
+            this.checkedComboBox1.TabIndex = 3;
+            this.checkedComboBox1.ValueSeparator = ", ";
+            // 
+            // dateTimePickerEx31
+            // 
+            this.dateTimePickerEx31.DisplayBackColor = System.Drawing.SystemColors.Window;
+            this.dateTimePickerEx31.Format = System.Windows.Forms.DateTimePickerFormat.Long;
+            this.dateTimePickerEx31.Location = new System.Drawing.Point(709, 396);
+            this.dateTimePickerEx31.Name = "dateTimePickerEx31";
+            this.dateTimePickerEx31.Size = new System.Drawing.Size(105, 19);
+            this.dateTimePickerEx31.TabIndex = 4;
+            this.dateTimePickerEx31.Value = new System.DateTime(2026, 5, 22, 13, 23, 43, 805);
+            this.dateTimePickerEx31.Value2 = new System.DateTime(2026, 5, 22, 13, 23, 43, 805);
             // 
             // Form4
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1091, 518);
+            this.Controls.Add(this.dateTimePickerEx31);
+            this.Controls.Add(this.checkedComboBox1);
             this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.reserveGridView1);
             this.Controls.Add(this.panel1);
@@ -216,6 +272,9 @@ namespace GridviewEx
             this.panel1.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
             this.tabControl1.ResumeLayout(false);
+            this.tabPage1.ResumeLayout(false);
+            this.tabPage2.ResumeLayout(false);
+            this.tabPage2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.reserveGridView1)).EndInit();
             this.ResumeLayout(false);
 
@@ -235,8 +294,12 @@ namespace GridviewEx
         private System.Windows.Forms.DataGridViewTextBoxColumn Column6;
         private System.Windows.Forms.DataGridViewTextBoxColumn Column7;
         private System.Windows.Forms.DataGridViewTextBoxColumn Column8;
-        private System.Windows.Forms.TabControl tabControl1;
+        private coms.COMMON.ui.TabControlEx tabControl1;
         private System.Windows.Forms.TabPage tabPage1;
         private System.Windows.Forms.TabPage tabPage2;
+        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.CheckBox checkBox1;
+        private coms.COMMON.ui.CheckedComboBox checkedComboBox1;
+        private coms.COMMON.ui.DateTimePickerEx3 dateTimePickerEx31;
     }
 }

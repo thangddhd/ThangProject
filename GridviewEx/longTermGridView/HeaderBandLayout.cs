@@ -38,7 +38,7 @@ namespace coms.COMSK.ui.common
         public Color BorderColor { get; set; }
         public int BorderThickness { get; set; }
 
-        public HeaderBandTextAlignment TextAlignment { get; set; } = HeaderBandTextAlignment.Center;
+        public HeaderBandTextAlignment TextAlignment { get; set; } = HeaderBandTextAlignment.Left;
 
         public HeaderBandCellByName()
         {

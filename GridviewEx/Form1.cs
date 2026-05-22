@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Globalization;
+using System.Diagnostics;
 
 namespace GridviewEx
 {
@@ -21,17 +22,28 @@ namespace GridviewEx
         private void Form1_Load(object sender, EventArgs e)
         {
             List<DataTest> lstSrc = new List<DataTest>();
-            lstSrc.Add(DataTest.GetNew(1));
-            lstSrc.Add(DataTest.GetNew(2));
-            lstSrc.Add(DataTest.GetNew(3));
-            lstSrc.Add(DataTest.GetNew(4));
-            lstSrc.Add(DataTest.GetNew(5));
-            lstSrc.Add(DataTest.GetNew(13));
-            lstSrc.Add(DataTest.GetNew(17));
-            lstSrc.Add(DataTest.GetNew(25));
-            lstSrc.Add(DataTest.GetNew(35));
-            lstSrc.Add(DataTest.GetNew(46));
-            lstSrc.Add(DataTest.GetNew(57));
+            var obj = DataTest.GetNew(7);
+            obj.Column4 = "三菱地所コミュニティ";
+            lstSrc.Add(obj);
+            obj = DataTest.GetNew(3);
+            obj.Column4 = "テセト";
+            lstSrc.Add(obj);
+            obj = DataTest.GetNew(1);
+            obj.Column4 = "ミツビシ";
+            lstSrc.Add(obj);
+            obj = DataTest.GetNew(2);
+            obj.Column4 = "三菱";
+            lstSrc.Add(obj);
+            obj = DataTest.GetNew(4);
+            obj.Column4 = "TESV";
+            lstSrc.Add(obj);
+            obj = DataTest.GetNew(6);
+            obj.Column4 = "テスト";
+            lstSrc.Add(obj);
+            obj = DataTest.GetNew(5);
+            obj.Column4 = "TEST";
+            lstSrc.Add(obj);
+
             BindingSource bds = new BindingSource();
             bds.DataSource = lstSrc;
             
@@ -49,12 +61,20 @@ namespace GridviewEx
             bds.ResetBindings(true);
             dataGridViewEx1.DataSource = bds;
             dataGridViewEx1.SortAsNumberColumns.Add(Column2.Name);
+
+            dateTimePickerEx31.Value = DateTime.Now;
+            dateTimePickerEx31.Value = DateTime.MinValue;
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
             Form2 f = new Form2();
             f.Show();
+        }
+
+        private void dateTimePickerEx31_ValueChanged(object sender, EventArgs e)
+        {
+            Debug.WriteLine("Hello debug");
         }
     }
 

@@ -43,6 +43,7 @@ namespace GridviewEx
             this.Column7 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
             this.button1 = new System.Windows.Forms.Button();
+            this.dateTimePickerEx31 = new coms.COMMON.ui.DateTimePickerEx3();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewEx1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -180,7 +181,7 @@ namespace GridviewEx
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(923, 162);
+            this.button1.Location = new System.Drawing.Point(996, 64);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(75, 23);
             this.button1.TabIndex = 2;
@@ -188,11 +189,24 @@ namespace GridviewEx
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
+            // dateTimePickerEx31
+            // 
+            this.dateTimePickerEx31.DisplayBackColor = System.Drawing.SystemColors.Window;
+            this.dateTimePickerEx31.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+            this.dateTimePickerEx31.Location = new System.Drawing.Point(893, 156);
+            this.dateTimePickerEx31.Name = "dateTimePickerEx31";
+            this.dateTimePickerEx31.Size = new System.Drawing.Size(95, 19);
+            this.dateTimePickerEx31.TabIndex = 3;
+            this.dateTimePickerEx31.Value = new System.DateTime(2026, 5, 22, 13, 40, 48, 884);
+            this.dateTimePickerEx31.Value2 = new System.DateTime(2026, 5, 22, 13, 40, 48, 884);
+            this.dateTimePickerEx31.ValueChanged += new System.EventHandler(this.dateTimePickerEx31_ValueChanged);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1154, 679);
+            this.Controls.Add(this.dateTimePickerEx31);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.dateTimePicker1);
             this.Controls.Add(this.dataGridViewEx1);
@@ -217,6 +231,7 @@ namespace GridviewEx
         private System.Windows.Forms.DataGridViewTextBoxColumn Column7;
         private System.Windows.Forms.DateTimePicker dateTimePicker1;
         private System.Windows.Forms.Button button1;
+        private coms.COMMON.ui.DateTimePickerEx3 dateTimePickerEx31;
     }
 }
 

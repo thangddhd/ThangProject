@@ -626,6 +626,12 @@ namespace GridviewEx
         {
             _grid.RestoreColumns(_grid.Columns.Cast<DataGridViewColumn>().Select(c => c.Name));
         }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            Form1 frm = new Form1();
+            frm.Show();
+        }
     }
 
     // Example vertical merge provider: merges Column1..Column4 when equal.

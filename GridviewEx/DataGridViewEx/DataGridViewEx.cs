@@ -1433,17 +1433,31 @@ namespace coms.COMMON.ui
                     }
                 }
 
+                var result = query.ToList();
+
                 // Apply sort
                 if (!string.IsNullOrWhiteSpace(_lastSortString))
                 {
-                    string sortExpr = ConvertSortToLinq(_lastSortString);
-                    if (!string.IsNullOrWhiteSpace(sortExpr))
+                    bool isDescending = IsDescendingSort(_lastSortString);
+
+                    if (isDescending)
                     {
-                        query = query.OrderBy(sortExpr);
+                        string ascSortExpr = ConvertSortToAscendingLinq(_lastSortString);
+                        if (!string.IsNullOrWhiteSpace(ascSortExpr))
+                        {
+                            result = result.AsQueryable().OrderBy(ascSortExpr).ToList();
+                            result.Reverse();
+                        }
+                    }
+                    else
+                    {
+                        string sortExpr = ConvertSortToLinq(_lastSortString);
+                        if (!string.IsNullOrWhiteSpace(sortExpr))
+                        {
+                            result = result.AsQueryable().OrderBy(sortExpr).ToList();
+                        }
                     }
                 }
-
-                var result = query.ToList();
 
                 if (this.DataSource is BindingSource bs)
                     bs.DataSource = result;
@@ -3597,6 +3611,35 @@ namespace coms.COMMON.ui
             return decimal.TryParse(s, System.Globalization.NumberStyles.Any,
                 System.Globalization.CultureInfo.InvariantCulture, out number)
                 || decimal.TryParse(s, out number);
+        }
+
+        private bool IsDescendingSort(string adgvSort)
+        {
+            if (string.IsNullOrWhiteSpace(adgvSort))
+                return false;
+
+            return adgvSort.IndexOf("DESC", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private string ConvertSortToAscendingLinq(string adgvSort)
+        {
+            if (string.IsNullOrWhiteSpace(adgvSort))
+                return null;
+
+            string result = adgvSort.Replace("[", "").Replace("]", "");
+            result = System.Text.RegularExpressions.Regex.Replace(
+                result,
+                @"\bDESC\b",
+                "ascending",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            result = System.Text.RegularExpressions.Regex.Replace(
+                result,
+                @"\bASC\b",
+                "ascending",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            return result;
         }
     }
 }

@@ -1369,7 +1369,7 @@ namespace coms.COMSK.ui.common
             switch (alignment)
             {
                 case HeaderBandTextAlignment.Left:
-                    r = new Rectangle(r.Left + 5, r.Top, Math.Max(0, r.Width - 2), r.Height);
+                    r = new Rectangle(r.Left + 2, r.Top, Math.Max(0, r.Width - 2), r.Height);
                     break;
 
                 case HeaderBandTextAlignment.Right:

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Globalization;
 
 namespace GridviewEx
 {
@@ -20,6 +21,23 @@ namespace GridviewEx
         private void Form4_Load(object sender, EventArgs e)
         {
             reserveGridView1.DataSource = MakeSrc(20);
+            List<string> lst = new List<string>();
+            lst.Add("テスト");
+            lst.Add("三菱");
+            lst.Add("TEST");
+            var compareInfo = CultureInfo.CurrentCulture.CompareInfo;
+
+            var comparer = Comparer<string>.Create((a, b) =>
+                compareInfo.Compare(a, b, CompareOptions.None));
+
+            var lst1 = lst
+                .OrderBy(x => x, comparer)
+                .ToList();
+
+            var lst2 = lst
+                .OrderByDescending(x => x, comparer)
+                .ToList();
+            var aa = 11;
         }
 
         private List<objtest> MakeSrc(int rowNum)
