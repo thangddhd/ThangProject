@@ -12,7 +12,7 @@ namespace coms.COMMON.ui
         private int m_ColumnSpan = 1;
         private int m_RowSpan = 1;
         private DataGridViewTextBoxCellEx m_OwnerCell;
-        
+
         #endregion
 
         #region Properties
@@ -89,7 +89,7 @@ namespace coms.COMMON.ui
                 var args = new CustomColumnDataEventArgs(
                     rowIndex,
                     this.OwningColumn.Name,
-                    myValue, 
+                    myValue,
                     isGetData: true,
                     isSetData: false
                 );
@@ -112,7 +112,7 @@ namespace coms.COMMON.ui
                 var args = new CustomColumnDataEventArgs(
                     rowIndex,
                     this.OwningColumn.Name,
-                    value, 
+                    value,
                     isGetData: false,
                     isSetData: true
                 );
@@ -167,7 +167,7 @@ namespace coms.COMMON.ui
         #endregion
 
         #region Private Methods
-        
+
         #endregion
 
         #region Merge Cells
@@ -267,6 +267,6 @@ namespace coms.COMMON.ui
             }
         }
 
-        
+
     }
 }

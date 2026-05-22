@@ -5,6 +5,7 @@ namespace coms.COMMON.ui
     public class DataGridViewNumericColumn : DataGridViewColumn
     {
         public bool AllowDecimal { get; set; } = false;
+        public bool IgnoreFormat { get; set; } = false;
 
         public DataGridViewNumericColumn()
             : base(new DataGridViewNumericTextBoxCell())

@@ -34,9 +34,21 @@ namespace coms.COMMON.ui
 
             var col = this.OwningColumn as DataGridViewNumericColumn;
             bool allowDecimal = col?.AllowDecimal ?? false;
+            bool ignoreFormat = col?.IgnoreFormat ?? false;
 
             if (!double.TryParse(value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double n))
                 return "";
+
+            if (ignoreFormat)
+            {
+                if (!allowDecimal)
+                {
+                    long iv = (long)n;
+                    return iv.ToString();
+                }
+
+                return n.ToString();
+            }
 
             if (!allowDecimal)
             {

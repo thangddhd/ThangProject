@@ -283,6 +283,8 @@ namespace coms.COMMON.ui
             _suppressOverlayTextChanged = true;
             try
             {
+                bool wasNull = bIsNull;
+
                 // store old formats if not already stored
                 if (!bIsNull)
                 {
@@ -297,6 +299,10 @@ namespace coms.COMMON.ui
                 this.CustomFormat = " ";
                 if (_overlayTextBox != null)
                     _overlayTextBox.Text = "";
+
+                // Manually notify because base.Value was not changed
+                if (!wasNull)
+                    OnValueChanged(EventArgs.Empty);
             }
             finally
             {
