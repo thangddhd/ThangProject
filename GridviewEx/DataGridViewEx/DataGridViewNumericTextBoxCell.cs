@@ -29,34 +29,64 @@ namespace coms.COMMON.ui
             ref DataGridViewCellStyle cellStyle, TypeConverter valueTypeConverter,
             TypeConverter formattedValueTypeConverter, DataGridViewDataErrorContexts context)
         {
+            string formattedValue = string.Empty;
+
             if (value == null || value == DBNull.Value)
-                return "";
-
-            var col = this.OwningColumn as DataGridViewNumericColumn;
-            bool allowDecimal = col?.AllowDecimal ?? false;
-            bool ignoreFormat = col?.IgnoreFormat ?? false;
-
-            if (!double.TryParse(value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double n))
-                return "";
-
-            if (ignoreFormat)
             {
-                if (!allowDecimal)
+                formattedValue = "";
+            }
+            else
+            {
+                var col = this.OwningColumn as DataGridViewNumericColumn;
+                bool allowDecimal = col?.AllowDecimal ?? false;
+                bool ignoreFormat = col?.IgnoreFormat ?? false;
+
+                if (!double.TryParse(value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double n))
+                    formattedValue = "";
+                else if (ignoreFormat)
                 {
-                    long iv = (long)n;
-                    return iv.ToString();
+                    if (!allowDecimal)
+                    {
+                        long iv = (long)n;
+                        formattedValue = iv.ToString();
+                    }
+                    else
+                    {
+                        formattedValue = n.ToString();
+                    }
                 }
-
-                return n.ToString();
+                else
+                {
+                    if (!allowDecimal)
+                    {
+                        long iv = (long)n;
+                        formattedValue = iv.ToString("#,##0", CultureInfo.InvariantCulture);
+                    }
+                    else
+                    {
+                        formattedValue = n.ToString("#,##0.##########", CultureInfo.InvariantCulture);
+                    }
+                }
             }
 
-            if (!allowDecimal)
+            if (this.DataGridView is DataGridViewEx customGrid)
             {
-                long iv = (long)n;
-                return iv.ToString("#,##0", CultureInfo.InvariantCulture);
+                var args = new CustomColumnDisplayTextEventArgs(rowIndex, value)
+                {
+                    ColumnName = this.OwningColumn?.Name,
+                    Column = this.OwningColumn,
+                    DisplayText = formattedValue
+                };
+
+                customGrid.OnCustomColumnDisplayText(args);
+
+                if (args.Handled)
+                {
+                    return args.DisplayText;
+                }
             }
 
-            return n.ToString("#,##0.##########", CultureInfo.InvariantCulture);
+            return formattedValue;
         }
     }
 }
