@@ -20,6 +20,11 @@ namespace coms.COMSK.ui.common
 
         public string[] YearColumnNamePrefixes { get; set; }
 
+        /// <summary>
+        /// 築年工事費列以外の数値列
+        /// </summary>
+        public string[] NumericColumns { get; set; }
+
         public int HighlightedRowIndex { get; private set; }
 
         public Color RowHighlightTopBorderColor { get; set; }
@@ -60,6 +65,7 @@ namespace coms.COMSK.ui.common
         private readonly Dictionary<Tuple<int, string>, CellStyleOverride> _cellStyleOverrides =
             new Dictionary<Tuple<int, string>, CellStyleOverride>();
 
+        private TextBox _activeEditingTextBox = null;
         private readonly HashSet<CellKey> _editPermit = new HashSet<CellKey>();
 
         private bool _dragging;
@@ -1117,6 +1123,7 @@ namespace coms.COMSK.ui.common
 
         private void OnCellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
+            DetachEditingTextBoxHandlers();
             _editPermit.Remove(new CellKey(e.RowIndex, e.ColumnIndex));
         }
 
@@ -1124,6 +1131,7 @@ namespace coms.COMSK.ui.common
         {
             // keep existing behavior
             e.Control.BackColor = Color.White;
+            DetachEditingTextBoxHandlers();
 
             // ReserveGridView merged: textbox init + EditingControlRule
             var rowIndex = CurrentCell != null ? CurrentCell.RowIndex : -1;
@@ -1137,6 +1145,17 @@ namespace coms.COMSK.ui.common
                     if (cell != null && (cell.Value == null || cell.Value == DBNull.Value))
                     {
                         tb.Text = string.Empty;
+                    }
+
+                    if (IsNumericColumn(colIndex))
+                    {
+                        tb.ImeMode = ImeMode.Disable;
+                        tb.KeyPress += OnEditingTextBoxKeyPressNumericOnly;
+                        _activeEditingTextBox = tb;
+                    }
+                    else
+                    {
+                        tb.ImeMode = ImeMode.NoControl;
                     }
 
                     tb.SelectionStart = 0;
@@ -2151,6 +2170,124 @@ namespace coms.COMSK.ui.common
             catch { }
 
             e.ThrowException = false;
+        }
+
+        private bool IsNumericColumn(int columnIndex)
+        {
+            if (columnIndex < 0 || columnIndex >= Columns.Count) return false;
+
+            bool ret = IsYearColumn(columnIndex);
+            if (ret) return ret;
+
+            var col = Columns[columnIndex];
+            if (col == null || !col.Visible) return false;
+            try
+            {
+                string colName = col.Name ?? string.Empty;
+                if (!string.IsNullOrEmpty(colName) && NumericColumns != null &&
+                    NumericColumns.Contains(colName))
+                {
+                    return true;
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
+        private bool IsYearColumn(int columnIndex)
+        {
+            if (columnIndex < 0 || columnIndex >= Columns.Count) return false;
+
+            var col = Columns[columnIndex];
+            if (col == null || !col.Visible) return false;
+
+            try
+            {
+                // 1) safest: use Tag because yearly columns are created with TAG_DRAGGABLE_CELL
+                if (col.Tag != null)
+                {
+                    string tagText = Convert.ToString(col.Tag);
+                    if (!string.IsNullOrWhiteSpace(tagText) &&
+                        string.Equals(tagText, Convert.ToString(coms.COMSK.common.COMSKCommon.TAG_DRAGGABLE_CELL), StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch { }
+
+            try
+            {
+                // 2) fallback: column name contains bgcolValue
+                string colName = col.Name ?? string.Empty;
+                if (!string.IsNullOrEmpty(colName) &&
+                    colName.IndexOf("bgcolValue", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+            catch { }
+
+            try
+            {
+                // 3) keep old prefix-based fallback too
+                string colName = col.Name ?? string.Empty;
+                var prefixes = YearColumnNamePrefixes ?? new string[0];
+                foreach (var prefix in prefixes)
+                {
+                    if (string.IsNullOrWhiteSpace(prefix)) continue;
+                    if (colName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
+        private void DetachEditingTextBoxHandlers()
+        {
+            if (_activeEditingTextBox == null) return;
+
+            try
+            {
+                _activeEditingTextBox.KeyPress -= OnEditingTextBoxKeyPressNumericOnly;
+                _activeEditingTextBox.ImeMode = ImeMode.NoControl;
+            }
+            catch { }
+
+            _activeEditingTextBox = null;
+        }
+
+        private void OnEditingTextBoxKeyPressNumericOnly(object sender, KeyPressEventArgs e)
+        {
+            if (e == null) return;
+
+            // Backspace / Delete / Ctrl combinations etc.
+            if (char.IsControl(e.KeyChar)) return;
+
+            // numeric 0-9
+            if (char.IsDigit(e.KeyChar)) return;
+
+            // optional minus at first position only
+            var tb = sender as TextBox;
+            if (tb != null && e.KeyChar == '-')
+            {
+                try
+                {
+                    string current = tb.Text ?? string.Empty;
+                    int selStart = tb.SelectionStart;
+                    int selLength = tb.SelectionLength;
+                    string next = current.Remove(selStart, selLength).Insert(selStart, "-");
+
+                    if (next == "-" || (next.StartsWith("-") && next.IndexOf('-', 1) < 0))
+                        return;
+                }
+                catch { }
+            }
+
+            e.Handled = true;
         }
     }
 }

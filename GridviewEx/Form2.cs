@@ -299,7 +299,7 @@ namespace GridviewEx
 
         private void CreateColYearAll(DataGridView grid, int yearStart, int count = 60)
         {
-            const string YEAR_TAG = "AAA"; // or COMSKCommon.TAG_DRAGGABLE_CELL
+            const string YEAR_TAG = "LongtermRepairPlan_DraggableCell"; // or COMSKCommon.TAG_DRAGGABLE_CELL
             const string SUBTOTAL_COL = "bgcolSubTotal";
 
             // Find where subtotal currently is (by DisplayIndex)
