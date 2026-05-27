@@ -146,6 +146,7 @@ namespace coms.COMSK.ui.common
             CellBeginEdit += OnCellBeginEdit;
             CellEndEdit += OnCellEndEdit;
             EditingControlShowing += OnEditingControlShowing;
+            DataError += OnDataError;
 
             Scroll += OnScrollInvalidate;
             ColumnWidthChanged += OnColumnLayoutChanged;
@@ -1064,15 +1065,6 @@ namespace coms.COMSK.ui.common
             if (IsCellReadOnlyByRule(e.RowIndex, e.ColumnIndex))
                 return;
 
-            // Normalize DBNull/null BEFORE BeginEdit
-            try
-            {
-                var cell = this[e.ColumnIndex, e.RowIndex];
-                if (cell != null && (cell.Value == null || cell.Value == DBNull.Value))
-                    cell.Value = 0L; // or 0, depending on your property type
-            }
-            catch { }
-
             // keep the "permit on double click" behavior (but no longer tied to drag-allowed)
             _editPermit.Add(new CellKey(e.RowIndex, e.ColumnIndex));
 
@@ -1141,6 +1133,12 @@ namespace coms.COMSK.ui.common
             {
                 try
                 {
+                    var cell = this[colIndex, rowIndex];
+                    if (cell != null && (cell.Value == null || cell.Value == DBNull.Value))
+                    {
+                        tb.Text = string.Empty;
+                    }
+
                     tb.SelectionStart = 0;
                     tb.SelectionLength = tb.TextLength;
                 }
@@ -2128,5 +2126,31 @@ namespace coms.COMSK.ui.common
             return this._mergeStore.TryGetRegionFromCell(rowIndex, columnIndex, out region) == true;
         }
 
+        private void OnDataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            try
+            {
+                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+                {
+                    var cell = this[e.ColumnIndex, e.RowIndex];
+                    if (cell != null)
+                    {
+                        string editedText = null;
+                        try { editedText = Convert.ToString(cell.EditedFormattedValue); }
+                        catch { }
+
+                        if (string.IsNullOrWhiteSpace(editedText))
+                        {
+                            e.ThrowException = false;
+                            e.Cancel = false;
+                            return;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            e.ThrowException = false;
+        }
     }
 }
