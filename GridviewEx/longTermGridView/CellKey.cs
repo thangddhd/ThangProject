@@ -2,7 +2,7 @@
 
 namespace coms.COMSK.ui.common
 {
-    internal struct CellKey : IEquatable<CellKey>
+    public struct CellKey : IEquatable<CellKey>
     {
         public readonly int Row;
         public readonly int Col;

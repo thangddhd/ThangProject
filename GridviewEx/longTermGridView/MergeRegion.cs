@@ -1,12 +1,13 @@
-﻿using System;
-
-namespace coms.COMSK.ui.common
+﻿namespace coms.COMSK.ui.common
 {
-    internal sealed class MergeRegion
+    public sealed class MergeRegion
     {
         public int RowStart { get; set; }
         public int RowSpan { get; set; }
         public int[] ColumnIndexes { get; set; }
+        public bool IsCollapsed { get; set; } // 開閉状態
+        // グループの
+        public bool AllowDrawMergeGroup { get; set; }
 
         public MergeRegion()
         {
@@ -14,11 +15,7 @@ namespace coms.COMSK.ui.common
             ColumnIndexes = new int[0];
         }
 
-        public int OwnerRow
-        {
-            get { return RowStart; }
-        }
-
+        public int OwnerRow => RowStart;
         public int OwnerCol
         {
             get

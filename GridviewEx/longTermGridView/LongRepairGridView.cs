@@ -55,6 +55,7 @@ namespace coms.COMSK.ui.common
 
         private List<string> _leftColumnNames = new List<string>();
         private List<string> _verticalMergeColumnNames = new List<string>();
+        private HashSet<string> _drawMergeTextColumnNames = new HashSet<string>();
 
         private readonly Dictionary<Tuple<int, string>, CellStyleOverride> _cellStyleOverrides =
             new Dictionary<Tuple<int, string>, CellStyleOverride>();
@@ -248,6 +249,26 @@ namespace coms.COMSK.ui.common
             _verticalMergeColumnNames = NormalizeDistinct(columnNames);
         }
 
+        public string[] DrawMergeTextColumnNames
+        {
+            get => _drawMergeTextColumnNames.ToArray();
+            set
+            {
+                _drawMergeTextColumnNames.Clear();
+
+                if (value != null)
+                {
+                    foreach (var name in value)
+                    {
+                        if (!string.IsNullOrWhiteSpace(name))
+                        {
+                            _drawMergeTextColumnNames.Add(name);
+                        }
+                    }
+                }
+            }
+        }
+
         public void SetCellBackColor(int rowIndex, string columnName, Color color)
         {
             if (rowIndex < 0) return;
@@ -435,6 +456,8 @@ namespace coms.COMSK.ui.common
                 }
             }
 
+            region.AllowDrawMergeGroup = _drawMergeTextColumnNames.Contains(Columns[region.OwnerCol].Name);
+
             var ownerKey = new CellKey(ownerR, ownerC);
             _mergeStore.RegionByOwner[ownerKey] = region;
 
@@ -590,7 +613,7 @@ namespace coms.COMSK.ui.common
         private void OnCellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
-
+            //Draw Right border with black color and bold
             bool needsRightBorder = false;
             try { needsRightBorder = HasRightBorder(e.ColumnIndex); } catch { }
 
@@ -756,26 +779,69 @@ namespace coms.COMSK.ui.common
                     MergeRegion region;
                     if (_mergeStore.TryGetRegionByOwner(owner, out region) && region != null)
                     {
-                        Rectangle mergedRect = GetMergedRect(region);
+                        //if(e.RowIndex != region.RowStart)
+                        //{
+                        //    e.Handled = true;
+                        //    return;
+                        //}
+                        Rectangle mergedRect = e.CellBounds;
+                        int bottomRowIndex = region.RowStart + region.RowSpan - 1;
+                        if (region.AllowDrawMergeGroup)
+                        {
+                            mergedRect = GetMergedRect(region, ref bottomRowIndex);
+                        }
                         if (!mergedRect.IsEmpty)
                         {
                             // Always paint something for this cell to avoid black and missing visuals
                             e.PaintBackground(e.ClipBounds, true);
-
-                            // Fill merged background (only the part being repainted)
+                            // ------------------------
+                            //※ Fill merged background (only the part being repainted)
+                            // ------------------------
                             Rectangle paintRect = Rectangle.Intersect(mergedRect, e.CellBounds);
-                            if (!paintRect.IsEmpty)
+                            if (!e.CellBounds.IsEmpty)
                             {
                                 using (SolidBrush back = new SolidBrush(e.CellStyle.BackColor))
                                     e.Graphics.FillRectangle(back, paintRect);
                             }
 
-                            // Draw text from owner value, but clip to current cell repaint area
-                            object val = this[owner.Col, owner.Row].FormattedValue;
-                            string text = Convert.ToString(val) ?? string.Empty;
 
+                            // ------------------------
+                            //※ Draw icon before text
+                            // ------------------------
                             Rectangle textRect = Rectangle.Inflate(mergedRect, -2, -2);
 
+                            if (region.RowSpan > 1 && e.RowIndex == region.RowStart && e.ColumnIndex == region.OwnerCol)
+                            {
+                                if (!region.AllowDrawMergeGroup)
+                                {
+                                    int iconWidth = 10;
+                                    int padding = 4;
+
+                                    Rectangle iconRect = new Rectangle(
+                                        mergedRect.Left + padding,
+                                        mergedRect.Top + (mergedRect.Height - iconWidth) / 2,
+                                        iconWidth,
+                                        iconWidth
+                                    );
+
+                                    DrawPlusMinusIconWithBackground(e.Graphics, iconRect, region.IsCollapsed);
+
+                                    //--Draw text in area
+                                    textRect = new Rectangle(
+                                        iconRect.Right + padding,
+                                        mergedRect.Top,
+                                        mergedRect.Width - (iconRect.Right - mergedRect.Left) - padding,
+                                        mergedRect.Height
+                                    );
+
+                                }
+                            }
+
+                            // ------------------------
+                            // ※ Draw text after icon or at normal position if no icon
+                            // ------------------------
+                            object val = this[e.ColumnIndex, e.RowIndex].FormattedValue;
+                            string text = Convert.ToString(val) ?? string.Empty;
                             Region oldClip = e.Graphics.Clip;
                             try
                             {
@@ -798,8 +864,10 @@ namespace coms.COMSK.ui.common
                                 if (oldClip != null) oldClip.Dispose();
                             }
 
-                            DrawMergedOuterBorderIfNeeded(e, region, mergedRect);
-
+                            //------------------------
+                            //※ Draw Border: right, bottom for merged cell or cell of the same group
+                            // ------------------------
+                            DrawMergedOuterBorderIfNeeded(e, region, mergedRect, bottomRowIndex);
                             if (needsRightBorder) PaintRightBorderIfNeeded(e);
 
                             e.Handled = true;
@@ -810,6 +878,7 @@ namespace coms.COMSK.ui.common
             }
 
             // --- 5) Default cells: if we need a right border, we must fully paint then overlay border ---
+            // Separate border black color and bold
             if (needsRightBorder)
             {
                 // paint default cell completely, then overlay the right border line
@@ -822,30 +891,80 @@ namespace coms.COMSK.ui.common
             // else: do nothing => default painting
         }
 
-        private Rectangle GetMergedRect(MergeRegion region)
+        /// <summary>
+        /// 結合可能な行のうち、実際に表示されている最後の行のインデックスを返す。
+        /// </summary>
+        /// <param name="region"></param>
+        /// <param name="bottomRowIndex"></param>
+        /// <returns></returns>
+        private Rectangle GetMergedRect(MergeRegion region, ref int bottomRowIndex)
         {
             Rectangle mergedRect = Rectangle.Empty;
-
             for (int r = region.RowStart; r < region.RowStart + region.RowSpan; r++)
             {
-                for (int i = 0; i < region.ColumnIndexes.Length; i++)
+                if (r >= 0 && r < RowCount && Rows[r].Visible)
                 {
-                    int c = region.ColumnIndexes[i];
-                    Rectangle cellRect = GetCellDisplayRectangle(c, r, true);
-                    if (cellRect.Width <= 0 || cellRect.Height <= 0) continue;
+                    for (int i = 0; i < region.ColumnIndexes.Length; i++)
+                    {
+                        int c = region.ColumnIndexes[i];
+                        Rectangle cellRect = GetCellDisplayRectangle(c, r, true);
+                        if (cellRect.Width <= 0 || cellRect.Height <= 0) continue;
 
-                    mergedRect = mergedRect.IsEmpty ? cellRect : Rectangle.Union(mergedRect, cellRect);
+                        mergedRect = mergedRect.IsEmpty ? cellRect : Rectangle.Union(mergedRect, cellRect);
+                    }
+
+                    bottomRowIndex = r;
                 }
             }
 
             return mergedRect;
         }
 
-        private void DrawMergedOuterBorderIfNeeded(DataGridViewCellPaintingEventArgs e, MergeRegion region, Rectangle mergedRect)
+        /// <summary>
+        /// 開閉のアイコンと背景を描画する。
+        /// </summary>
+        /// <param name="g"></param>
+        /// <param name="rect"></param>
+        /// <param name="isCollapsed"></param>
+        private void DrawPlusMinusIconWithBackground(Graphics g, Rectangle rect, bool isCollapsed)
+        {
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+            Rectangle innerRect = new Rectangle(rect.X, rect.Y, rect.Width - 1, rect.Height - 1);
+
+            //background
+            using (SolidBrush bgBrush = new SolidBrush(Color.White))
+            using (Pen borderPen = new Pen(Color.Silver, 1))
+            {
+                g.FillRectangle(bgBrush, innerRect);
+                g.DrawRectangle(borderPen, innerRect);
+            }
+            using (Pen signPen = new Pen(Color.Black, 1))
+            {
+                int midX = innerRect.Left + innerRect.Width / 2;
+                int midY = innerRect.Top + innerRect.Height / 2;
+                int halfSize = 3;
+                g.DrawLine(signPen, midX - halfSize, midY, midX + halfSize, midY);
+                // vertical = collapsed
+                if (isCollapsed)
+                {
+                    g.DrawLine(signPen, midX, midY - halfSize, midX, midY + halfSize);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 外枠（右と下）を描画する
+        /// 現在のセルが結合グループの最後の行
+        /// または結合Cell以外設定の場合のグループ
+        /// </summary>
+        /// <param name="e"></param>
+        /// <param name="region"></param>
+        /// <param name="mergedRect"></param>
+        /// <param name="bottomRow"></param>
+        private void DrawMergedOuterBorderIfNeeded(DataGridViewCellPaintingEventArgs e, MergeRegion region, Rectangle mergedRect, int bottomRow)
         {
             // Determine region boundaries in row indexes
             int topRow = region.RowStart;
-            int bottomRow = region.RowStart + region.RowSpan - 1;
 
             // Determine left/right boundary columns by DISPLAY order
             int leftCol = region.ColumnIndexes
@@ -873,7 +992,7 @@ namespace coms.COMSK.ui.common
                 }*/
 
                 // Bottom edge segment
-                if (e.RowIndex == bottomRow)
+                if (e.RowIndex == bottomRow || !region.AllowDrawMergeGroup)
                 {
                     int y = mergedRect.Bottom - 1;
                     e.Graphics.DrawLine(pen,
@@ -1326,7 +1445,7 @@ namespace coms.COMSK.ui.common
                             break;
                         }
                     }
-
+                    // Border bold for seperate columns
                     if (bandHasRightBorder)
                     {
                         using (var pen = new Pen(Color.Black, 2))
@@ -1995,5 +2114,19 @@ namespace coms.COMSK.ui.common
             }
             catch { }
         }
+        /// <summary>
+        /// 結合セルの情報やグループ情報を取得します。
+        /// Formやユーザーコントロールから、セルの結合状態を知りたいときに使用します。
+        /// </summary>
+        /// <param name="rowIndex"></param>
+        /// <param name="columnIndex"></param>
+        /// <param name="region"></param>
+        /// <returns></returns>
+        public bool TryGetMergeRegion(int rowIndex, int columnIndex, out MergeRegion region)
+        {
+            region = null;
+            return this._mergeStore.TryGetRegionFromCell(rowIndex, columnIndex, out region) == true;
+        }
+
     }
 }

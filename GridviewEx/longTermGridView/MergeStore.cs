@@ -2,7 +2,7 @@
 
 namespace coms.COMSK.ui.common
 {
-    internal sealed class MergeStore
+    public sealed class MergeStore
     {
         public readonly Dictionary<CellKey, CellKey> OwnerByCell = new Dictionary<CellKey, CellKey>();
         public readonly Dictionary<CellKey, MergeRegion> RegionByOwner = new Dictionary<CellKey, MergeRegion>();
@@ -26,6 +26,17 @@ namespace coms.COMSK.ui.common
         public bool IsOwnerCell(int row, int col)
         {
             return RegionByOwner.ContainsKey(new CellKey(row, col));
+        }
+
+        public bool TryGetRegionFromCell(int row, int col, out MergeRegion region)
+        {
+            if (!TryGetOwner(row, col, out var owner))
+            {
+                region = null;
+                return false;
+            }
+
+            return RegionByOwner.TryGetValue(owner, out region);
         }
     }
 }
