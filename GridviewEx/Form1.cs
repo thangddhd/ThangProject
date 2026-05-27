@@ -75,6 +75,7 @@ namespace GridviewEx
         private void dateTimePickerEx31_ValueChanged(object sender, EventArgs e)
         {
             Debug.WriteLine("Hello debug");
+            Debug.WriteLine(dateTimePickerEx31.Value);
         }
     }
 

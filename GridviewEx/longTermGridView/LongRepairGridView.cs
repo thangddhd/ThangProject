@@ -1,11 +1,10 @@
-﻿using System;
+﻿using coms.COMMON.ui;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
-
-using coms.COMMON.ui;
 
 namespace coms.COMSK.ui.common
 {
@@ -111,6 +110,9 @@ namespace coms.COMSK.ui.common
         /// </summary>
         public IReadOnlyList<string> LastHiddenColumnNames => _lastHiddenColumnNames.AsReadOnly();
         private readonly HashSet<string> _rightBorderColumnNames = new HashSet<string>(StringComparer.Ordinal);
+
+        private BindingSource _bs = new BindingSource();
+
         public LongRepairGridView()
         {
             HeaderLayout = null;
@@ -128,7 +130,7 @@ namespace coms.COMSK.ui.common
 
             // lock row height resizing by mouse
             AllowUserToResizeRows = false;
-            AllowUserToResizeColumns = false;
+            //AllowUserToResizeColumns = false;
             ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
 
             EnableDoubleBuffering();
@@ -162,6 +164,8 @@ namespace coms.COMSK.ui.common
             MouseMove += OnMouseMoveHeaderBandDrag;
             MouseUp += OnMouseUpHeaderBandDrag;
         }
+
+        public BindingSource GetBindingSource() => _bs;
 
         private void EnableDoubleBuffering()
         {
