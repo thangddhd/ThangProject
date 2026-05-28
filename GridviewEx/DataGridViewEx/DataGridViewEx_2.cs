@@ -1,19 +1,17 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Collections;
-using System.ComponentModel;
-using System.ComponentModel.Design;
+﻿using System;
 using System.Data;
-using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Linq;
-using System.Linq.Dynamic.Core;
-using System.Reflection;
-using System.Text.RegularExpressions;
+using System.Drawing;
+using System.Collections;
 using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
+using System.ComponentModel;
 using System.Drawing.Imaging;
+using System.Drawing.Drawing2D;
+using System.Linq.Dynamic.Core;
+using System.Collections.Generic;
+using System.ComponentModel.Design;
+using System.Text.RegularExpressions;
+using Newtonsoft.Json;
 using Zuby.ADGV;
 using coms.COMMON.Utility;
 
@@ -97,15 +95,16 @@ namespace coms.COMMON.ui
         private string _groupColumn = null;
         private readonly List<GroupRowInfo> _groups = new List<GroupRowInfo>();
         private int _hoverRowIndex = -1;
-        private Image _filterIcon = GridviewEx.Properties.Resources.icons8_filter_16;
+        private Image _filterIcon = Properties.Resources.icons8_filter_16;
         private int _hoverColumnIndex = -1;
         private object _oldCellValue;
         private int _insertionMarkIndex = -1;
         private int _insertionMarkX = -1;
 
-        private IEnumerable<object> _originalListData;
-        private BindingSource _originalBindingSource;
-        private object _originalBindingSourceData;
+        private BindingSource _bindingSource = new BindingSource();
+        private IList _originalListData;
+        private Type _itemType;
+        private GridMode _mode = GridMode.ReadOnly;
         private string _lastFilterString = "";
         private string _lastSortString = "";
 
@@ -144,6 +143,8 @@ namespace coms.COMMON.ui
         public HashSet<string> SortAsNumberColumns { get; set; } = new HashSet<string>();
         public DataGridViewEx()
         {
+            this.DataSource = _bindingSource;
+
             this.DoubleBuffered = true;
             this.EnableHeadersVisualStyles = false;
             this.RowHeadersVisible = false;
@@ -169,6 +170,7 @@ namespace coms.COMMON.ui
 
             this.ColumnDisplayIndexChanged += DataGridViewEx_ColumnDisplayIndexChanged;
             this.ColumnStateChanged += DataGridViewEx_ColumnStateChanged;
+
             this.initialOtherControl();
         }
 
@@ -188,7 +190,7 @@ namespace coms.COMMON.ui
             _clearFilterButton.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             _clearFilterButton.TextImageRelation = TextImageRelation.ImageBeforeText;
 
-            _clearFilterButton.Image = GridviewEx.Properties.Resources.delete2_16;
+            _clearFilterButton.Image = Properties.Resources.delete2_16;
 
             _clearFilterButton.Click += (s, e) =>
             {
@@ -197,6 +199,124 @@ namespace coms.COMMON.ui
             this.Controls.Add(_clearFilterButton);
             this.Resize += (s, e) => PositionClearFilterButton();
             this.Scroll += (s, e) => PositionClearFilterButton();
+        }
+
+        public void SetData<T>(IList<T> data, GridMode mode = GridMode.ReadOnly)
+        {
+            _mode = mode;
+            _itemType = typeof(T);
+
+            if (data is IList list)
+            {
+                if (list == null)
+                {
+                    Type genericListType = typeof(List<>);
+                    Type concreteListType = genericListType.MakeGenericType(_itemType);
+                    _originalListData = (IList)Activator.CreateInstance(concreteListType);
+                }
+                else
+                {
+                    _originalListData = list;
+                }
+            }
+            else
+            {
+                _originalListData = data == null
+                    ? (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(typeof(T)))
+                    : data.ToList();
+            }
+
+            //DataGridViewExHelper.ApplySettingForColumn(this);
+            ApplyListFilterAndSort();
+            //AutoConfigNullInputColumn();
+        }
+
+        public void AddItem(object item)
+        {
+            if (item == null) return;
+
+            if (_originalListData == null)
+            {
+                if (_itemType == null)
+                {
+                    _itemType = item.GetType();
+                }
+
+                Type listType = typeof(List<>).MakeGenericType(_itemType);
+                _originalListData = (IList)Activator.CreateInstance(listType);
+            }
+
+            if (item.GetType() != _itemType && !_itemType.IsAssignableFrom(item.GetType()))
+            {
+                throw new InvalidOperationException(string.Format("Item must be of type {0}", _itemType.Name));
+            }
+
+            _originalListData.Add(item);
+            ApplyListFilterAndSort();
+        }
+
+        public void RemoveItem(object item)
+        {
+            if (item == null || _originalListData == null) return;
+
+            _originalListData.Remove(item);
+            ApplyListFilterAndSort();
+        }
+
+        public void RemoveCurrentItem()
+        {
+            if (_bindingSource == null) return;
+
+            var current = _bindingSource.Current;
+            if (current == null || _originalListData == null) return;
+
+            _originalListData.Remove(current);
+            ApplyListFilterAndSort();
+        }
+
+        public T GetCurrentRow<T>()
+        {
+            return (T)_bindingSource.Current;
+        }
+
+        public BindingSource GetBindingSource()
+        {
+            return _bindingSource;
+        }
+
+        public BindingList<T> GetBindingList<T>()
+        {
+            if (_bindingSource.DataSource is BindingList<T> bindingList)
+            {
+                return bindingList;
+            }
+
+            if (_bindingSource.DataSource is List<T> list)
+            {
+                return new BindingList<T>(list);
+            }
+
+            return new BindingList<T>();
+        }
+
+        public BindingList<T> GetBindingListAll<T>()
+        {
+            if (_originalListData == null) return new BindingList<T>();
+
+            var list = _originalListData.Cast<T>().ToList();
+            return new BindingList<T>(list);
+        }
+
+        public void UpdateItem(object item)
+        {
+            if (item == null || _originalListData == null) return;
+
+            int index = _originalListData.IndexOf(item);
+            if (index >= 0)
+            {
+                _originalListData[index] = item;
+                ApplyListFilterAndSort();
+            }
         }
 
         public int FocusedRowHandle
@@ -565,10 +685,7 @@ namespace coms.COMMON.ui
 
         private void CaptureOriginalDataSourceIfNeeded()
         {
-            if (_origDataSource == null)
-            {
-                _origDataSource = this.DataSource;
-            }
+            _origDataSource = _bindingSource.DataSource;
         }
         #endregion
 
@@ -622,18 +739,10 @@ namespace coms.COMMON.ui
             RefreshDisplayRowsUI();
         }
 
-        private IEnumerable<object> ExtractEnumerableItemsFromDataSource()
+        private List<object> ExtractEnumerableItemsFromDataSource()
         {
-            if (this.DataSource is BindingSource bs)
-                return bs.Cast<object>();
-
-            if (this.DataSource is IEnumerable<object> en)
-                return en;
-
-            if (this.DataSource is DataTable dt)
-                return dt.AsEnumerable().Cast<object>();
-
-            return null;
+            if (_originalListData == null) return new List<object>();
+            return _originalListData.Cast<object>().ToList();
         }
 
         private string GetGroupKey(object item, string column)
@@ -1419,16 +1528,19 @@ namespace coms.COMMON.ui
 
         private void ApplyListFilterAndSort()
         {
-            RefreshOriginalListDataFromSource();
-
             if (_originalListData == null) return;
-            if (!_originalListData.Any()) return;
+            if (_originalListData.Count == 0)
+            {
+                _bindingSource.DataSource = new List<object>();
+                this.DataSource = _bindingSource;
+                this.UpdateClearFilterButtonVisibility();
+                return;
+            }
 
             try
             {
-                var query = _originalListData.AsQueryable();
+                var query = _originalListData.Cast<object>().AsQueryable();
 
-                // Apply filter
                 if (!string.IsNullOrWhiteSpace(_lastFilterString))
                 {
                     string linqFilter = ConvertFilterToLinq(_lastFilterString);
@@ -1440,7 +1552,6 @@ namespace coms.COMMON.ui
 
                 var result = query.ToList();
 
-                // Apply sort
                 if (!string.IsNullOrWhiteSpace(_lastSortString))
                 {
                     bool isDescending = IsDescendingSort(_lastSortString);
@@ -1464,10 +1575,11 @@ namespace coms.COMMON.ui
                     }
                 }
 
-                if (this.DataSource is BindingSource bs)
-                    bs.DataSource = result;
-                else
-                    this.DataSource = new BindingSource { DataSource = result };
+                _bindingSource.DataSource = result;
+                if (this.DataSource != _bindingSource)
+                {
+                    this.DataSource = _bindingSource;
+                }
 
                 this.UpdateClearFilterButtonVisibility();
             }
@@ -2938,19 +3050,18 @@ namespace coms.COMMON.ui
         {
             base.OnDataSourceChanged(e);
 
-            // Capture original source only once.
-            // Do NOT overwrite these when the grid later rebinds to sorted/filter result lists.
-            if (_originalBindingSource == null && this.DataSource is BindingSource firstBs)
+            if (this.DataSource is BindingSource bs && bs.DataSource is IEnumerable<object> list)
             {
-                _originalBindingSource = firstBs;
-                _originalBindingSourceData = firstBs.DataSource;
+                _originalListData = ((IEnumerable<object>)bs.DataSource).ToList();
             }
-            else if (_originalBindingSource == null && this.DataSource != null)
+            else if (this.DataSource is IEnumerable<object> list2)
             {
-                _originalBindingSourceData = this.DataSource;
+                _originalListData = list2.ToList();
             }
-
-            RefreshOriginalListDataFromSource();
+            else
+            {
+                _originalListData = null;
+            }
 
             this.FilterStringChanged -= DataGridViewEx_FilterStringChanged;
             this.SortStringChanged -= DataGridViewEx_SortStringChanged;
@@ -3450,8 +3561,6 @@ namespace coms.COMMON.ui
         /// </summary>
         public void ReapplyCurrentFilterAndSort()
         {
-            RefreshOriginalListDataFromSource();
-
             if (_originalListData == null)
                 return;
 
@@ -3500,15 +3609,12 @@ namespace coms.COMMON.ui
 
         private void ApplyListSortAsNumber(string propName, ListSortDirection direction)
         {
-            RefreshOriginalListDataFromSource();
-
             if (_originalListData == null) return;
 
             try
             {
-                var query = _originalListData.AsQueryable();
+                var query = _originalListData.Cast<object>().AsQueryable();
 
-                // Apply filter first (same as ApplyListFilterAndSort)
                 if (!string.IsNullOrWhiteSpace(_lastFilterString))
                 {
                     string linqFilter = ConvertFilterToLinq(_lastFilterString);
@@ -3516,69 +3622,57 @@ namespace coms.COMMON.ui
                         query = query.Where(linqFilter);
                 }
 
-                // materialize so we can do safe numeric parsing and special ordering
                 var list = query.ToList();
 
-                // split numeric vs non-numeric
-                var numeric = new List<(object item, decimal num)>();
-                var nonNumeric = new List<object>();
-
-                foreach (var item in list)
+                Func<object, decimal?> getNumericValue = item =>
                 {
                     object val = null;
 
-                    // support DataRow/DataRowView too
-                    if (item is DataRow dr)
+                    var dr = item as DataRow;
+                    if (dr != null)
+                    {
                         val = dr.Table.Columns.Contains(propName) ? dr[propName] : null;
-                    else if (item is DataRowView drv)
-                        val = drv.DataView.Table.Columns.Contains(propName) ? drv[propName] : null;
+                    }
                     else
                     {
-                        var p = item.GetType().GetProperty(propName);
-                        if (p != null) val = p.GetValue(item);
+                        var drv = item as DataRowView;
+                        if (drv != null)
+                        {
+                            val = drv.DataView.Table.Columns.Contains(propName) ? drv[propName] : null;
+                        }
+                        else
+                        {
+                            var p = item.GetType().GetProperty(propName);
+                            if (p != null) val = p.GetValue(item, null);
+                        }
                     }
 
-                    if (TryGetDecimal(val, out var num))
-                        numeric.Add((item, num));
-                    else
-                        nonNumeric.Add(item);
-                }
-
-                // string key for non-numeric ordering (null/DBNull => "")
-                Func<object, string> nonNumericKey = (item) =>
-                {
-                    object val = null;
-
-                    if (item is DataRow dr2)
-                        val = dr2.Table.Columns.Contains(propName) ? dr2[propName] : null;
-                    else if (item is DataRowView drv2)
-                        val = drv2.DataView.Table.Columns.Contains(propName) ? drv2[propName] : null;
-                    else
-                    {
-                        var p = item.GetType().GetProperty(propName);
-                        if (p != null) val = p.GetValue(item);
-                    }
-
-                    if (val == null || val == DBNull.Value) return "";
-                    return val.ToString();
+                    decimal num;
+                    if (TryGetDecimal(val, out num)) return num;
+                    return null;
                 };
 
-                IEnumerable<object> sortedNumeric = (direction == ListSortDirection.Ascending)
-                    ? numeric.OrderBy(x => x.num).Select(x => x.item)
-                    : numeric.OrderByDescending(x => x.num).Select(x => x.item);
-
-                IEnumerable<object> sortedNonNumeric = (direction == ListSortDirection.Ascending)
-                    ? nonNumeric.OrderBy(nonNumericKey, StringComparer.CurrentCultureIgnoreCase)
-                    : nonNumeric.OrderByDescending(nonNumericKey, StringComparer.CurrentCultureIgnoreCase);
-
-                List<object> result = (direction == ListSortDirection.Ascending)
-                    ? sortedNumeric.Concat(sortedNonNumeric).ToList()
-                    : sortedNonNumeric.Concat(sortedNumeric).ToList();
-
-                if (this.DataSource is BindingSource bs)
-                    bs.DataSource = result;
+                List<object> result;
+                if (direction == ListSortDirection.Ascending)
+                {
+                    result = list
+                        .OrderBy(x => getNumericValue(x).HasValue ? 0 : 1)
+                        .ThenBy(x => getNumericValue(x) ?? decimal.MaxValue)
+                        .ToList();
+                }
                 else
-                    this.DataSource = new BindingSource { DataSource = result };
+                {
+                    result = list
+                        .OrderBy(x => getNumericValue(x).HasValue ? 0 : 1)
+                        .ThenByDescending(x => getNumericValue(x) ?? decimal.MinValue)
+                        .ToList();
+                }
+
+                _bindingSource.DataSource = result;
+                if (this.DataSource != _bindingSource)
+                {
+                    this.DataSource = _bindingSource;
+                }
 
                 this.UpdateClearFilterButtonVisibility();
             }
@@ -3647,45 +3741,6 @@ namespace coms.COMMON.ui
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             return result;
-        }
-
-        private void RefreshOriginalListDataFromSource()
-        {
-            try
-            {
-                object source = null;
-
-                if (_originalBindingSource != null)
-                {
-                    source = _originalBindingSourceData ?? _originalBindingSource.DataSource;
-                }
-                else
-                {
-                    source = this.DataSource;
-                }
-
-                if (source is BindingSource bs)
-                {
-                    source = bs.DataSource;
-                }
-
-                if (source is DataTable dt)
-                {
-                    _originalListData = dt.AsEnumerable().Cast<object>().ToList();
-                }
-                else if (source is IEnumerable en && !(source is string))
-                {
-                    _originalListData = en.Cast<object>().ToList();
-                }
-                else
-                {
-                    _originalListData = null;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine("RefreshOriginalListDataFromSource: " + ex.Message);
-            }
         }
     }
 }
