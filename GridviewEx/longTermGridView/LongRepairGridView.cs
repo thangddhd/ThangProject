@@ -2209,7 +2209,7 @@ namespace coms.COMSK.ui.common
                 {
                     string tagText = Convert.ToString(col.Tag);
                     if (!string.IsNullOrWhiteSpace(tagText) &&
-                        string.Equals(tagText, Convert.ToString(coms.COMSK.common.COMSKCommon.TAG_DRAGGABLE_CELL), StringComparison.Ordinal))
+                        string.Equals(tagText, Convert.ToString("111"), StringComparison.Ordinal))
                     {
                         return true;
                     }

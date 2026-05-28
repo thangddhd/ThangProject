@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.Data;
@@ -103,6 +104,8 @@ namespace coms.COMMON.ui
         private int _insertionMarkX = -1;
 
         private IEnumerable<object> _originalListData;
+        private BindingSource _originalBindingSource;
+        private object _originalBindingSourceData;
         private string _lastFilterString = "";
         private string _lastSortString = "";
 
@@ -1416,6 +1419,8 @@ namespace coms.COMMON.ui
 
         private void ApplyListFilterAndSort()
         {
+            RefreshOriginalListDataFromSource();
+
             if (_originalListData == null) return;
             if (!_originalListData.Any()) return;
 
@@ -2933,18 +2938,19 @@ namespace coms.COMMON.ui
         {
             base.OnDataSourceChanged(e);
 
-            if (this.DataSource is BindingSource bs && bs.DataSource is IEnumerable<object> list)
+            // Capture original source only once.
+            // Do NOT overwrite these when the grid later rebinds to sorted/filter result lists.
+            if (_originalBindingSource == null && this.DataSource is BindingSource firstBs)
             {
-                _originalListData = ((IEnumerable<object>)bs.DataSource).ToList();
+                _originalBindingSource = firstBs;
+                _originalBindingSourceData = firstBs.DataSource;
             }
-            else if (this.DataSource is IEnumerable<object> list2)
+            else if (_originalBindingSource == null && this.DataSource != null)
             {
-                _originalListData = list2.ToList();
+                _originalBindingSourceData = this.DataSource;
             }
-            else
-            {
-                _originalListData = null;
-            }
+
+            RefreshOriginalListDataFromSource();
 
             this.FilterStringChanged -= DataGridViewEx_FilterStringChanged;
             this.SortStringChanged -= DataGridViewEx_SortStringChanged;
@@ -3444,6 +3450,8 @@ namespace coms.COMMON.ui
         /// </summary>
         public void ReapplyCurrentFilterAndSort()
         {
+            RefreshOriginalListDataFromSource();
+
             if (_originalListData == null)
                 return;
 
@@ -3492,6 +3500,8 @@ namespace coms.COMMON.ui
 
         private void ApplyListSortAsNumber(string propName, ListSortDirection direction)
         {
+            RefreshOriginalListDataFromSource();
+
             if (_originalListData == null) return;
 
             try
@@ -3539,10 +3549,10 @@ namespace coms.COMMON.ui
                 {
                     object val = null;
 
-                    if (item is DataRow dr)
-                        val = dr.Table.Columns.Contains(propName) ? dr[propName] : null;
-                    else if (item is DataRowView drv)
-                        val = drv.DataView.Table.Columns.Contains(propName) ? drv[propName] : null;
+                    if (item is DataRow dr2)
+                        val = dr2.Table.Columns.Contains(propName) ? dr2[propName] : null;
+                    else if (item is DataRowView drv2)
+                        val = drv2.DataView.Table.Columns.Contains(propName) ? drv2[propName] : null;
                     else
                     {
                         var p = item.GetType().GetProperty(propName);
@@ -3561,9 +3571,6 @@ namespace coms.COMMON.ui
                     ? nonNumeric.OrderBy(nonNumericKey, StringComparer.CurrentCultureIgnoreCase)
                     : nonNumeric.OrderByDescending(nonNumericKey, StringComparer.CurrentCultureIgnoreCase);
 
-                // ✅ Required behavior:
-                // Asc: numeric first, non-numeric bottom
-                // Desc: non-numeric top, numeric bottom
                 List<object> result = (direction == ListSortDirection.Ascending)
                     ? sortedNumeric.Concat(sortedNonNumeric).ToList()
                     : sortedNonNumeric.Concat(sortedNumeric).ToList();
@@ -3640,6 +3647,45 @@ namespace coms.COMMON.ui
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             return result;
+        }
+
+        private void RefreshOriginalListDataFromSource()
+        {
+            try
+            {
+                object source = null;
+
+                if (_originalBindingSource != null)
+                {
+                    source = _originalBindingSourceData ?? _originalBindingSource.DataSource;
+                }
+                else
+                {
+                    source = this.DataSource;
+                }
+
+                if (source is BindingSource bs)
+                {
+                    source = bs.DataSource;
+                }
+
+                if (source is DataTable dt)
+                {
+                    _originalListData = dt.AsEnumerable().Cast<object>().ToList();
+                }
+                else if (source is IEnumerable en && !(source is string))
+                {
+                    _originalListData = en.Cast<object>().ToList();
+                }
+                else
+                {
+                    _originalListData = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("RefreshOriginalListDataFromSource: " + ex.Message);
+            }
         }
     }
 }
