@@ -674,12 +674,14 @@ namespace coms.COMMON.ui
         private object _origDataSource = null;
         private void RebindDataSourceWithoutGrouping()
         {
-            // If the grid is bound to DataTable via BindingSource, try to reassign original data source
-            if (_origDataSource != null)
+            this.DataSource = null;
+            this.Rows.Clear();
+
+            ApplyListFilterAndSort();
+
+            if (this.DataSource != _bindingSource)
             {
-                this.DataSource = null;
-                this.Rows.Clear();
-                this.DataSource = _origDataSource;
+                this.DataSource = _bindingSource;
             }
         }
 
@@ -3050,18 +3052,7 @@ namespace coms.COMMON.ui
         {
             base.OnDataSourceChanged(e);
 
-            if (this.DataSource is BindingSource bs && bs.DataSource is IEnumerable<object> list)
-            {
-                _originalListData = ((IEnumerable<object>)bs.DataSource).ToList();
-            }
-            else if (this.DataSource is IEnumerable<object> list2)
-            {
-                _originalListData = list2.ToList();
-            }
-            else
-            {
-                _originalListData = null;
-            }
+            //_originalListData = ExtractEnumerableItemsFromDataSource();
 
             this.FilterStringChanged -= DataGridViewEx_FilterStringChanged;
             this.SortStringChanged -= DataGridViewEx_SortStringChanged;
@@ -3366,22 +3357,20 @@ namespace coms.COMMON.ui
         {
             if (rowIndex < 0 || rowIndex >= this.Rows.Count || this.Rows[rowIndex].IsNewRow)
             {
-                return false; // 削除のデータ行じゃない場合
+                return false;
             }
 
             object dataItem = this.Rows[rowIndex].DataBoundItem;
 
             if (dataItem is DataRowView drv)
             {
-                // DataRowStateを'Deleted'に変わる
-                // DataGridView行の消す
                 drv.Delete();
                 return true;
             }
             else if (this.DataSource is BindingSource bs && rowIndex < bs.Count)
             {
-                /// データソース：BindingSourceの場合
-                bs.RemoveAt(rowIndex);
+                var item = bs[rowIndex];
+                RemoveItem(item);
                 return true;
             }
 
@@ -3390,18 +3379,17 @@ namespace coms.COMMON.ui
 
         internal void AddNewRow()
         {
-            //get Datasource
-            if (this.DataSource == null) return;
-            BindingSource bd = this.DataSource as BindingSource;
+            if (_itemType == null) return;
 
-            bd.AddNew();
-            bd.MoveLast();
+            var newItem = Activator.CreateInstance(_itemType);
+            AddItem(newItem);
 
-            int newRowIndex = this.NewRowIndex != -1 ? this.NewRowIndex - 1 : this.Rows.Count - 1;
-            if (this.AllowUserToAddRows == false) newRowIndex = this.Rows.Count - 1;
-
-            this.CurrentCell = this.Rows[newRowIndex].Cells[0];
-            this.BeginEdit(true);
+            int newRowIndex = this.Rows.Count - 1;
+            if (newRowIndex >= 0 && this.Columns.Count > 0)
+            {
+                this.CurrentCell = this.Rows[newRowIndex].Cells[0];
+                this.BeginEdit(true);
+            }
 
             var args = new CustomInitNewRowEventArgs(newRowIndex);
             this.OnCustomInitNewRow(args);
