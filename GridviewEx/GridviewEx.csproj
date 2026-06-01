@@ -77,6 +77,12 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="ColumnChooserPopup.Designer.cs" />
+    <Compile Include="CtrBasicRepairPlan_B.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="CtrBasicRepairPlan_B.Designer.cs">
+      <DependentUpon>CtrBasicRepairPlan_B.cs</DependentUpon>
+    </Compile>
     <Compile Include="DataGridViewEx\DataGridViewButtonCellEx.cs" />
     <Compile Include="DataGridViewEx\DataGridViewCellExHelper.cs" />
     <Compile Include="DataGridViewEx\DataGridViewComboBoxCellEx.cs" />
