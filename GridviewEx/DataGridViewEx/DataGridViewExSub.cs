@@ -5,6 +5,12 @@ using System.Collections.Generic;
 
 namespace coms.COMMON.ui
 {
+    public enum GridMode
+    {
+        ReadOnly,
+        Editable
+    }
+
     public class GridViewStyle
     {
         public Color RowBackColor { get; set; } = Color.White;

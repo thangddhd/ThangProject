@@ -82,11 +82,7 @@
     <Compile Include="DataGridViewEx\DataGridViewComboBoxCellEx.cs" />
     <Compile Include="DataGridViewEx\DataGridViewDateTimePickerCell.cs" />
     <Compile Include="DataGridViewEx\DataGridViewDateTimePickerColumn.cs" />
-    <Compile Include="DataGridViewEx\DataGridViewEx_1.cs" />
-    <Compile Include="DataGridViewEx\DataGridViewEx_2.cs" />
-    <Compile Include="DataGridViewEx\DataGridViewEx_1.Designer.cs">
-      <DependentUpon>DataGridViewEx_1.cs</DependentUpon>
-    </Compile>
+    <Compile Include="DataGridViewEx\DataGridViewEx.cs" />
     <Compile Include="DataGridViewEx\DataGridViewExHelper.cs" />
     <Compile Include="DataGridViewEx\DataGridViewExSub.cs" />
     <Compile Include="DataGridViewEx\DataGridViewNumericColumn.cs" />

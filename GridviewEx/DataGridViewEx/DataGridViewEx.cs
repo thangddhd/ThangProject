@@ -95,7 +95,7 @@ namespace coms.COMMON.ui
         private string _groupColumn = null;
         private readonly List<GroupRowInfo> _groups = new List<GroupRowInfo>();
         private int _hoverRowIndex = -1;
-        private Image _filterIcon = Properties.Resources.icons8_filter_16;
+        private Image _filterIcon = GridviewEx.Properties.Resources.icons8_filter_16;
         private int _hoverColumnIndex = -1;
         private object _oldCellValue;
         private int _insertionMarkIndex = -1;
@@ -190,7 +190,7 @@ namespace coms.COMMON.ui
             _clearFilterButton.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             _clearFilterButton.TextImageRelation = TextImageRelation.ImageBeforeText;
 
-            _clearFilterButton.Image = Properties.Resources.delete2_16;
+            _clearFilterButton.Image = GridviewEx.Properties.Resources.delete2_16;
 
             _clearFilterButton.Click += (s, e) =>
             {
@@ -255,6 +255,83 @@ namespace coms.COMMON.ui
             ApplyListFilterAndSort();
         }
 
+        public void InsertItem(int index, object item)
+        {
+            if (item == null) return;
+
+            if (_originalListData == null)
+            {
+                if (_itemType == null)
+                {
+                    _itemType = item.GetType();
+                }
+
+                Type listType = typeof(List<>).MakeGenericType(_itemType);
+                _originalListData = (IList)Activator.CreateInstance(listType);
+            }
+
+            if (_itemType == null)
+            {
+                _itemType = item.GetType();
+            }
+
+            if (item.GetType() != _itemType && !_itemType.IsAssignableFrom(item.GetType()))
+            {
+                throw new InvalidOperationException(string.Format("Item must be of type {0}", _itemType.Name));
+            }
+
+            if (index < 0) index = 0;
+            if (index > _originalListData.Count) index = _originalListData.Count;
+
+            _originalListData.Insert(index, item);
+            ApplyListFilterAndSort();
+        }
+
+        public void InsertItemAfterCurrent(object item)
+        {
+            if (item == null) return;
+
+            if (_originalListData == null)
+            {
+                AddItem(item);
+                return;
+            }
+
+            object current = null;
+
+            if (this.CurrentRow != null)
+            {
+                if (this.CurrentRow.Tag != null)
+                {
+                    var prop = this.CurrentRow.Tag.GetType().GetProperty("DataItem");
+                    if (prop != null)
+                    {
+                        current = prop.GetValue(this.CurrentRow.Tag);
+                    }
+                }
+
+                if (current == null)
+                {
+                    current = this.CurrentRow.DataBoundItem;
+                }
+            }
+
+            if (current == null)
+            {
+                InsertItem(_originalListData.Count, item);
+                return;
+            }
+
+            int index = _originalListData.IndexOf(current);
+            if (index < 0)
+            {
+                InsertItem(_originalListData.Count, item);
+                return;
+            }
+
+            InsertItem(index + 1, item);
+        }
+
         public void RemoveItem(object item)
         {
             if (item == null || _originalListData == null) return;
@@ -286,13 +363,15 @@ namespace coms.COMMON.ui
 
         public BindingList<T> GetBindingList<T>()
         {
-            if (_bindingSource.DataSource is BindingList<T> bindingList)
-            {
-                return bindingList;
-            }
+            if (_bindingSource == null || _bindingSource.DataSource == null)
+                return new BindingList<T>();
 
-            if (_bindingSource.DataSource is List<T> list)
+            if (_bindingSource.DataSource is IEnumerable enumerable && !(_bindingSource.DataSource is string))
             {
+                var list = enumerable.Cast<object>()
+                                     .OfType<T>()
+                                     .ToList();
+
                 return new BindingList<T>(list);
             }
 

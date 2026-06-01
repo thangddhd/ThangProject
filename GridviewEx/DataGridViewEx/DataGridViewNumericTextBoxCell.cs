@@ -19,10 +19,13 @@ namespace coms.COMMON.ui
             var ctl = DataGridView.EditingControl as NumericEditingControl;
             var col = OwningColumn as DataGridViewNumericColumn;
 
+            if (ctl == null) return;
+
             string raw = this.Value?.ToString() ?? "";
 
             ctl.Text = raw;
             ctl.AllowDecimal = col.AllowDecimal;
+            ctl.ImeMode = ImeMode.Disable;
         }
 
         protected override object GetFormattedValue(object value, int rowIndex,
