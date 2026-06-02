@@ -67,6 +67,7 @@ namespace coms.COMSK.ui.common
 
         private TextBox _activeEditingTextBox = null;
         private readonly HashSet<CellKey> _editPermit = new HashSet<CellKey>();
+        private bool _suppressNumericTextChange;
 
         private bool _dragging;
         private CellKey _dragStart = new CellKey(-1, -1);
@@ -1182,6 +1183,7 @@ namespace coms.COMSK.ui.common
                     {
                         tb.ImeMode = ImeMode.Disable;
                         tb.KeyPress += OnEditingTextBoxKeyPressNumericOnly;
+                        tb.TextChanged += OnEditingTextBoxTextChangedNumericOnly;
                         _activeEditingTextBox = tb;
                     }
                     else
@@ -2284,6 +2286,7 @@ namespace coms.COMSK.ui.common
             try
             {
                 _activeEditingTextBox.KeyPress -= OnEditingTextBoxKeyPressNumericOnly;
+                _activeEditingTextBox.TextChanged -= OnEditingTextBoxTextChangedNumericOnly;
                 _activeEditingTextBox.ImeMode = ImeMode.NoControl;
             }
             catch { }
@@ -2319,6 +2322,79 @@ namespace coms.COMSK.ui.common
             }
 
             e.Handled = true;
+        }
+
+        private void OnEditingTextBoxTextChangedNumericOnly(object sender, EventArgs e)
+        {
+            if (_suppressNumericTextChange) return;
+
+            var tb = sender as TextBox;
+            if (tb == null) return;
+
+            string text = tb.Text ?? string.Empty;
+            if (text.Length == 0) return;
+
+            string sanitized = SanitizeNumericText(text);
+            if (string.Equals(text, sanitized, StringComparison.Ordinal)) return;
+
+            int selectionStart = tb.SelectionStart;
+            int oldLength = text.Length;
+            int newLength = sanitized.Length;
+
+            _suppressNumericTextChange = true;
+            try
+            {
+                tb.Text = sanitized;
+
+                int newSelectionStart = selectionStart - (oldLength - newLength);
+                if (newSelectionStart < 0) newSelectionStart = 0;
+                if (newSelectionStart > tb.TextLength) newSelectionStart = tb.TextLength;
+
+                tb.SelectionStart = newSelectionStart;
+                tb.SelectionLength = 0;
+            }
+            finally
+            {
+                _suppressNumericTextChange = false;
+            }
+        }
+
+        private static string SanitizeNumericText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+
+            var chars = new List<char>(text.Length);
+            bool hasMinus = false;
+
+            for (int i = 0; i < text.Length; i++)
+            {
+                char ch = text[i];
+
+                // allow ASCII digits only
+                if (ch >= '0' && ch <= '9')
+                {
+                    chars.Add(ch);
+                    continue;
+                }
+
+                // allow ASCII minus only at first position and only once
+                if (ch == '-' && !hasMinus && chars.Count == 0)
+                {
+                    chars.Add(ch);
+                    hasMinus = true;
+                    continue;
+                }
+
+                // block everything else:
+                // - fullwidth digits: ０１２３...
+                // - fullwidth minus: －
+                // - commas, dots, spaces, letters, symbols, etc.
+            }
+
+            if (chars.Count == 1 && chars[0] == '-')
+                return "-";
+
+            return new string(chars.ToArray());
         }
     }
 }
