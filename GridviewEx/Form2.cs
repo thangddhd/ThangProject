@@ -77,7 +77,7 @@ namespace GridviewEx
                 // old behavior: only RepairPlan rows + column.Tag must match
                 if (model == null) return false;
                 if (model.Row != "BBB") return false;
-                return (col.Tag as string) == "AAA";
+                return (col.Tag as string) == "LongtermRepairPlan_DraggableCell";
             };
 
             // Drag completed event

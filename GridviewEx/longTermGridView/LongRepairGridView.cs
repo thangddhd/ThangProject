@@ -151,6 +151,7 @@ namespace coms.COMSK.ui.common
             CellDoubleClick += OnCellDoubleClick;
             CellBeginEdit += OnCellBeginEdit;
             CellEndEdit += OnCellEndEdit;
+            CellParsing += OnCellParsing;
             EditingControlShowing += OnEditingControlShowing;
             DataError += OnDataError;
 
@@ -1125,6 +1126,36 @@ namespace coms.COMSK.ui.common
         {
             DetachEditingTextBoxHandlers();
             _editPermit.Remove(new CellKey(e.RowIndex, e.ColumnIndex));
+        }
+
+        private void OnCellParsing(object sender, DataGridViewCellParsingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (!IsNumericColumn(e.ColumnIndex)) return;
+
+            string text = null;
+            try { text = Convert.ToString(e.Value); }
+            catch { }
+
+            // numeric columns:
+            // - empty => commit null
+            // - zero => commit null
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                e.Value = DBNull.Value;
+                e.Value = 0L;
+                e.ParsingApplied = true;
+                return;
+            }
+
+            long parsed;
+            if (long.TryParse(text, out parsed) && parsed == 0)
+            {
+                e.Value = DBNull.Value;
+                e.Value = 0L;
+                e.ParsingApplied = true;
+                return;
+            }
         }
 
         private void OnEditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
@@ -2209,7 +2240,7 @@ namespace coms.COMSK.ui.common
                 {
                     string tagText = Convert.ToString(col.Tag);
                     if (!string.IsNullOrWhiteSpace(tagText) &&
-                        string.Equals(tagText, Convert.ToString("111"), StringComparison.Ordinal))
+                        string.Equals(tagText, Convert.ToString("LongtermRepairPlan_DraggableCell"), StringComparison.Ordinal))
                     {
                         return true;
                     }

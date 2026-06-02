@@ -21,7 +21,7 @@ namespace GridviewEx
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            List<DataTest> lstSrc = new List<DataTest>();
+            /*List<DataTest> lstSrc = new List<DataTest>();
             var obj = DataTest.GetNew(7);
             obj.Column4 = "三菱地所コミュニティ";
             lstSrc.Add(obj);
@@ -63,7 +63,7 @@ namespace GridviewEx
             dataGridViewEx1.SortAsNumberColumns.Add(Column2.Name);
 
             dateTimePickerEx31.Value = DateTime.Now;
-            dateTimePickerEx31.Value = DateTime.MinValue;
+            dateTimePickerEx31.Value = DateTime.MinValue;*/
         }
 
         private void button1_Click(object sender, EventArgs e)

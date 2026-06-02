@@ -8,6 +8,7 @@ C:\ThangProject\GridviewEx\bin\Debug\Newtonsoft.Json.dll
 C:\ThangProject\GridviewEx\bin\Debug\PdfSharp.dll
 C:\ThangProject\GridviewEx\bin\Debug\System.Linq.Dynamic.Core.dll
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.csproj.ResolveComReference.cache
+C:\ThangProject\GridviewEx\obj\Debug\coms.COMSK.ui.common.CtrBasicRepairPlan_B.resources
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.Form1.resources
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.Form2.resources
 C:\ThangProject\GridviewEx\obj\Debug\GridviewEx.Form3.resources

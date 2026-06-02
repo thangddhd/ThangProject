@@ -161,6 +161,9 @@
     </Compile>
     <Compile Include="Ultility\Number.cs" />
     <Compile Include="Ultility\Text.cs" />
+    <EmbeddedResource Include="CtrBasicRepairPlan_B.resx">
+      <DependentUpon>CtrBasicRepairPlan_B.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>
