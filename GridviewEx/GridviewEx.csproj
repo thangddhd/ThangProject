@@ -136,6 +136,8 @@
     <Compile Include="Form4.Designer.cs">
       <DependentUpon>Form4.cs</DependentUpon>
     </Compile>
+    <Compile Include="K300030010.cs" />
+    <Compile Include="K300030010.Designer.cs" />
     <Compile Include="longTermGridView\CellKey.cs" />
     <Compile Include="longTermGridView\CellStyleOverride.cs" />
     <Compile Include="longTermGridView\GridViewCustomEvent.cs" />
@@ -176,6 +178,7 @@
     <EmbeddedResource Include="Form4.resx">
       <DependentUpon>Form4.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="K300030010.resx" />
     <EmbeddedResource Include="MyForm.resx" />
     <EmbeddedResource Include="PrintPreviewForm.resx" />
     <EmbeddedResource Include="Properties\Resources.resx">
