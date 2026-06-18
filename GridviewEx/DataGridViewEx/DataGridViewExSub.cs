@@ -227,7 +227,8 @@ namespace coms.COMMON.ui
         CheckBox = 2,
         ComboBox = 3,
         Link = 4,
-        TextBox = 5
+        TextBox = 5,
+        CheckBoxDisabled = 6
     }
 
     public class ComboboxColumnEditEventArgs : EventArgs

@@ -1864,6 +1864,8 @@ namespace coms.COMMON.ui
         #region draw merged columns
         private void DrawCheckBoxColumn(DataGridViewCellPaintingEventArgs e, DataGridViewColumn column, Color fore)
         {
+            bool enabled = true;
+
             if (this.CheckboxColumnEdit != null)
             {
                 var args = new ColumnEditEventArgs(column, this.Rows[e.RowIndex], this.Rows[e.RowIndex].DataBoundItem);
@@ -1871,6 +1873,10 @@ namespace coms.COMMON.ui
                 if (args.EditType == GridColumnType.None)
                 {
                     return;
+                }
+                else if (args.EditType == GridColumnType.CheckBoxDisabled)
+                {
+                    enabled = false;
                 }
             }
 
@@ -1890,6 +1896,21 @@ namespace coms.COMMON.ui
                 state = System.Windows.Forms.VisualStyles.CheckBoxState.CheckedNormal;
             else if (isChecked == null)
                 state = System.Windows.Forms.VisualStyles.CheckBoxState.MixedNormal;
+            if (!enabled)  // disabled checkbox
+            {
+                if (state == System.Windows.Forms.VisualStyles.CheckBoxState.UncheckedNormal)
+                {
+                    state = System.Windows.Forms.VisualStyles.CheckBoxState.UncheckedDisabled;
+                }
+                else if (state == System.Windows.Forms.VisualStyles.CheckBoxState.CheckedNormal)
+                {
+                    state = System.Windows.Forms.VisualStyles.CheckBoxState.CheckedDisabled;
+                }
+                else if (state == System.Windows.Forms.VisualStyles.CheckBoxState.MixedNormal)
+                {
+                    state = System.Windows.Forms.VisualStyles.CheckBoxState.MixedDisabled;
+                }
+            }
 
             Size checkBoxSize = CheckBoxRenderer.GetGlyphSize(e.Graphics, state);
             int cx = e.CellBounds.Left + (e.CellBounds.Width - checkBoxSize.Width) / 2;
@@ -3248,12 +3269,15 @@ namespace coms.COMMON.ui
                     Point gridPoint = new Point(cellRect.X + e.X, cellRect.Y + e.Y);
 
                     var (top, bottom) = GetMergeRangeForCell(this.Columns[e.ColumnIndex], e.ColumnIndex, e.RowIndex);
-
                     var glyphRect = GetCheckBoxGlyphRect(e.ColumnIndex, top);
 
                     if (glyphRect != Rectangle.Empty && glyphRect.Contains(gridPoint))
                     {
-                        ToggleCheckBoxCellAt(e.ColumnIndex, e.RowIndex);
+                        if (CanToggleCheckBoxCell(e.ColumnIndex, e.RowIndex))
+                        {
+                            ToggleCheckBoxCellAt(e.ColumnIndex, e.RowIndex);
+                        }
+
                         return;
                     }
                 }
@@ -3808,6 +3832,36 @@ namespace coms.COMMON.ui
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             return result;
+        }
+
+        private bool CanToggleCheckBoxCell(int colIndex, int rowIndex)
+        {
+            if (colIndex < 0 || rowIndex < 0) return false;
+            if (rowIndex >= this.Rows.Count || colIndex >= this.Columns.Count) return false;
+
+            var col = this.Columns[colIndex];
+            if (!(col is DataGridViewCheckBoxColumn)) return false;
+
+            var row = this.Rows[rowIndex];
+            var cell = row.Cells[colIndex];
+
+            // standard readonly checks first
+            // if (this.ReadOnly || col.ReadOnly || row.ReadOnly || cell.ReadOnly)
+            //    return false;
+
+            // ask parent form through existing event
+            if (this.CheckboxColumnEdit != null)
+            {
+                var args = new ColumnEditEventArgs(col, row, row.DataBoundItem);
+                this.CheckboxColumnEdit.Invoke(this, args);
+
+                // convention:
+                // GridColumnType.None = not editable / disabled
+                if (args.EditType == GridColumnType.CheckBoxDisabled)
+                    return false;
+            }
+
+            return true;
         }
     }
 }
