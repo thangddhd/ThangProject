@@ -1,11 +1,10 @@
-﻿using System;
+﻿using coms.COMMON.ui;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
-
-using coms.COMMON.ui;
 
 namespace coms.COMSK.ui.common
 {
@@ -20,6 +19,11 @@ namespace coms.COMSK.ui.common
         public Func<T, bool> IsCalcRow { get; set; }
 
         public string[] YearColumnNamePrefixes { get; set; }
+
+        /// <summary>
+        /// 築年工事費列以外の数値列
+        /// </summary>
+        public string[] NumericColumns { get; set; }
 
         public int HighlightedRowIndex { get; private set; }
 
@@ -56,11 +60,14 @@ namespace coms.COMSK.ui.common
 
         private List<string> _leftColumnNames = new List<string>();
         private List<string> _verticalMergeColumnNames = new List<string>();
+        private HashSet<string> _drawMergeTextColumnNames = new HashSet<string>();
 
         private readonly Dictionary<Tuple<int, string>, CellStyleOverride> _cellStyleOverrides =
             new Dictionary<Tuple<int, string>, CellStyleOverride>();
 
+        private TextBox _activeEditingTextBox = null;
         private readonly HashSet<CellKey> _editPermit = new HashSet<CellKey>();
+        private bool _suppressNumericTextChange;
 
         private bool _dragging;
         private CellKey _dragStart = new CellKey(-1, -1);
@@ -73,7 +80,7 @@ namespace coms.COMSK.ui.common
         private int _selDisplayColMin = -1;
         private int _selDisplayColMax = -1;
 
-        private int _rowBorderThickness = 2;
+        private int _rowBorderThickness = 3;
 
         private CellKey _hoverButtonCell = new CellKey(-1, -1);
         private CellKey _pressedButtonCell = new CellKey(-1, -1);
@@ -111,6 +118,9 @@ namespace coms.COMSK.ui.common
         /// </summary>
         public IReadOnlyList<string> LastHiddenColumnNames => _lastHiddenColumnNames.AsReadOnly();
         private readonly HashSet<string> _rightBorderColumnNames = new HashSet<string>(StringComparer.Ordinal);
+
+        private BindingSource _bs = new BindingSource();
+
         public LongRepairGridView()
         {
             HeaderLayout = null;
@@ -142,7 +152,9 @@ namespace coms.COMSK.ui.common
             CellDoubleClick += OnCellDoubleClick;
             CellBeginEdit += OnCellBeginEdit;
             CellEndEdit += OnCellEndEdit;
+            CellParsing += OnCellParsing;
             EditingControlShowing += OnEditingControlShowing;
+            DataError += OnDataError;
 
             Scroll += OnScrollInvalidate;
             ColumnWidthChanged += OnColumnLayoutChanged;
@@ -162,6 +174,8 @@ namespace coms.COMSK.ui.common
             MouseMove += OnMouseMoveHeaderBandDrag;
             MouseUp += OnMouseUpHeaderBandDrag;
         }
+
+        public BindingSource GetBindingSource() => _bs;
 
         private void EnableDoubleBuffering()
         {
@@ -242,6 +256,26 @@ namespace coms.COMSK.ui.common
         public void SetVerticalMergeColumns(IEnumerable<string> columnNames)
         {
             _verticalMergeColumnNames = NormalizeDistinct(columnNames);
+        }
+
+        public string[] DrawMergeTextColumnNames
+        {
+            get => _drawMergeTextColumnNames.ToArray();
+            set
+            {
+                _drawMergeTextColumnNames.Clear();
+
+                if (value != null)
+                {
+                    foreach (var name in value)
+                    {
+                        if (!string.IsNullOrWhiteSpace(name))
+                        {
+                            _drawMergeTextColumnNames.Add(name);
+                        }
+                    }
+                }
+            }
         }
 
         public void SetCellBackColor(int rowIndex, string columnName, Color color)
@@ -431,6 +465,8 @@ namespace coms.COMSK.ui.common
                 }
             }
 
+            region.AllowDrawMergeGroup = _drawMergeTextColumnNames.Contains(Columns[region.OwnerCol].Name);
+
             var ownerKey = new CellKey(ownerR, ownerC);
             _mergeStore.RegionByOwner[ownerKey] = region;
 
@@ -586,7 +622,7 @@ namespace coms.COMSK.ui.common
         private void OnCellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
-
+            //Draw Right border with black color and bold
             bool needsRightBorder = false;
             try { needsRightBorder = HasRightBorder(e.ColumnIndex); } catch { }
 
@@ -752,26 +788,69 @@ namespace coms.COMSK.ui.common
                     MergeRegion region;
                     if (_mergeStore.TryGetRegionByOwner(owner, out region) && region != null)
                     {
-                        Rectangle mergedRect = GetMergedRect(region);
+                        //if(e.RowIndex != region.RowStart)
+                        //{
+                        //    e.Handled = true;
+                        //    return;
+                        //}
+                        Rectangle mergedRect = e.CellBounds;
+                        int bottomRowIndex = region.RowStart + region.RowSpan - 1;
+                        if (region.AllowDrawMergeGroup)
+                        {
+                            mergedRect = GetMergedRect(region, ref bottomRowIndex);
+                        }
                         if (!mergedRect.IsEmpty)
                         {
                             // Always paint something for this cell to avoid black and missing visuals
                             e.PaintBackground(e.ClipBounds, true);
-
-                            // Fill merged background (only the part being repainted)
+                            // ------------------------
+                            //※ Fill merged background (only the part being repainted)
+                            // ------------------------
                             Rectangle paintRect = Rectangle.Intersect(mergedRect, e.CellBounds);
-                            if (!paintRect.IsEmpty)
+                            if (!e.CellBounds.IsEmpty)
                             {
                                 using (SolidBrush back = new SolidBrush(e.CellStyle.BackColor))
                                     e.Graphics.FillRectangle(back, paintRect);
                             }
 
-                            // Draw text from owner value, but clip to current cell repaint area
-                            object val = this[owner.Col, owner.Row].FormattedValue;
-                            string text = Convert.ToString(val) ?? string.Empty;
 
+                            // ------------------------
+                            //※ Draw icon before text
+                            // ------------------------
                             Rectangle textRect = Rectangle.Inflate(mergedRect, -2, -2);
 
+                            if (region.RowSpan > 1 && e.RowIndex == region.RowStart && e.ColumnIndex == region.OwnerCol)
+                            {
+                                if (!region.AllowDrawMergeGroup)
+                                {
+                                    int iconWidth = 10;
+                                    int padding = 4;
+
+                                    Rectangle iconRect = new Rectangle(
+                                        mergedRect.Left + padding,
+                                        mergedRect.Top + (mergedRect.Height - iconWidth) / 2,
+                                        iconWidth,
+                                        iconWidth
+                                    );
+
+                                    DrawPlusMinusIconWithBackground(e.Graphics, iconRect, region.IsCollapsed);
+
+                                    //--Draw text in area
+                                    textRect = new Rectangle(
+                                        iconRect.Right + padding,
+                                        mergedRect.Top,
+                                        mergedRect.Width - (iconRect.Right - mergedRect.Left) - padding,
+                                        mergedRect.Height
+                                    );
+
+                                }
+                            }
+
+                            // ------------------------
+                            // ※ Draw text after icon or at normal position if no icon
+                            // ------------------------
+                            object val = this[owner.Col, owner.Row].FormattedValue;
+                            string text = Convert.ToString(val) ?? string.Empty;
                             Region oldClip = e.Graphics.Clip;
                             try
                             {
@@ -794,8 +873,10 @@ namespace coms.COMSK.ui.common
                                 if (oldClip != null) oldClip.Dispose();
                             }
 
-                            DrawMergedOuterBorderIfNeeded(e, region, mergedRect);
-
+                            //------------------------
+                            //※ Draw Border: right, bottom for merged cell or cell of the same group
+                            // ------------------------
+                            DrawMergedOuterBorderIfNeeded(e, region, mergedRect, bottomRowIndex);
                             if (needsRightBorder) PaintRightBorderIfNeeded(e);
 
                             e.Handled = true;
@@ -806,6 +887,7 @@ namespace coms.COMSK.ui.common
             }
 
             // --- 5) Default cells: if we need a right border, we must fully paint then overlay border ---
+            // Separate border black color and bold
             if (needsRightBorder)
             {
                 // paint default cell completely, then overlay the right border line
@@ -818,30 +900,80 @@ namespace coms.COMSK.ui.common
             // else: do nothing => default painting
         }
 
-        private Rectangle GetMergedRect(MergeRegion region)
+        /// <summary>
+        /// 結合可能な行のうち、実際に表示されている最後の行のインデックスを返す。
+        /// </summary>
+        /// <param name="region"></param>
+        /// <param name="bottomRowIndex"></param>
+        /// <returns></returns>
+        private Rectangle GetMergedRect(MergeRegion region, ref int bottomRowIndex)
         {
             Rectangle mergedRect = Rectangle.Empty;
-
             for (int r = region.RowStart; r < region.RowStart + region.RowSpan; r++)
             {
-                for (int i = 0; i < region.ColumnIndexes.Length; i++)
+                if (r >= 0 && r < RowCount && Rows[r].Visible)
                 {
-                    int c = region.ColumnIndexes[i];
-                    Rectangle cellRect = GetCellDisplayRectangle(c, r, true);
-                    if (cellRect.Width <= 0 || cellRect.Height <= 0) continue;
+                    for (int i = 0; i < region.ColumnIndexes.Length; i++)
+                    {
+                        int c = region.ColumnIndexes[i];
+                        Rectangle cellRect = GetCellDisplayRectangle(c, r, true);
+                        if (cellRect.Width <= 0 || cellRect.Height <= 0) continue;
 
-                    mergedRect = mergedRect.IsEmpty ? cellRect : Rectangle.Union(mergedRect, cellRect);
+                        mergedRect = mergedRect.IsEmpty ? cellRect : Rectangle.Union(mergedRect, cellRect);
+                    }
+
+                    bottomRowIndex = r;
                 }
             }
 
             return mergedRect;
         }
 
-        private void DrawMergedOuterBorderIfNeeded(DataGridViewCellPaintingEventArgs e, MergeRegion region, Rectangle mergedRect)
+        /// <summary>
+        /// 開閉のアイコンと背景を描画する。
+        /// </summary>
+        /// <param name="g"></param>
+        /// <param name="rect"></param>
+        /// <param name="isCollapsed"></param>
+        private void DrawPlusMinusIconWithBackground(Graphics g, Rectangle rect, bool isCollapsed)
+        {
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+            Rectangle innerRect = new Rectangle(rect.X, rect.Y, rect.Width - 1, rect.Height - 1);
+
+            //background
+            using (SolidBrush bgBrush = new SolidBrush(Color.White))
+            using (Pen borderPen = new Pen(Color.Silver, 1))
+            {
+                g.FillRectangle(bgBrush, innerRect);
+                g.DrawRectangle(borderPen, innerRect);
+            }
+            using (Pen signPen = new Pen(Color.Black, 1))
+            {
+                int midX = innerRect.Left + innerRect.Width / 2;
+                int midY = innerRect.Top + innerRect.Height / 2;
+                int halfSize = 3;
+                g.DrawLine(signPen, midX - halfSize, midY, midX + halfSize, midY);
+                // vertical = collapsed
+                if (isCollapsed)
+                {
+                    g.DrawLine(signPen, midX, midY - halfSize, midX, midY + halfSize);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 外枠（右と下）を描画する
+        /// 現在のセルが結合グループの最後の行
+        /// または結合Cell以外設定の場合のグループ
+        /// </summary>
+        /// <param name="e"></param>
+        /// <param name="region"></param>
+        /// <param name="mergedRect"></param>
+        /// <param name="bottomRow"></param>
+        private void DrawMergedOuterBorderIfNeeded(DataGridViewCellPaintingEventArgs e, MergeRegion region, Rectangle mergedRect, int bottomRow)
         {
             // Determine region boundaries in row indexes
             int topRow = region.RowStart;
-            int bottomRow = region.RowStart + region.RowSpan - 1;
 
             // Determine left/right boundary columns by DISPLAY order
             int leftCol = region.ColumnIndexes
@@ -869,7 +1001,7 @@ namespace coms.COMSK.ui.common
                 }*/
 
                 // Bottom edge segment
-                if (e.RowIndex == bottomRow)
+                if (e.RowIndex == bottomRow || !region.AllowDrawMergeGroup)
                 {
                     int y = mergedRect.Bottom - 1;
                     e.Graphics.DrawLine(pen,
@@ -941,15 +1073,6 @@ namespace coms.COMSK.ui.common
             if (IsCellReadOnlyByRule(e.RowIndex, e.ColumnIndex))
                 return;
 
-            // Normalize DBNull/null BEFORE BeginEdit
-            try
-            {
-                var cell = this[e.ColumnIndex, e.RowIndex];
-                if (cell != null && (cell.Value == null || cell.Value == DBNull.Value))
-                    cell.Value = 0L; // or 0, depending on your property type
-            }
-            catch { }
-
             // keep the "permit on double click" behavior (but no longer tied to drag-allowed)
             _editPermit.Add(new CellKey(e.RowIndex, e.ColumnIndex));
 
@@ -1002,13 +1125,45 @@ namespace coms.COMSK.ui.common
 
         private void OnCellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
+            DetachEditingTextBoxHandlers();
             _editPermit.Remove(new CellKey(e.RowIndex, e.ColumnIndex));
+        }
+
+        private void OnCellParsing(object sender, DataGridViewCellParsingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (!IsNumericColumn(e.ColumnIndex)) return;
+
+            string text = null;
+            try { text = Convert.ToString(e.Value); }
+            catch { }
+
+            // numeric columns:
+            // - empty => commit null
+            // - zero => commit null
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                e.Value = DBNull.Value;
+                e.Value = 0L;
+                e.ParsingApplied = true;
+                return;
+            }
+
+            long parsed;
+            if (long.TryParse(text, out parsed) && parsed == 0)
+            {
+                e.Value = DBNull.Value;
+                e.Value = 0L;
+                e.ParsingApplied = true;
+                return;
+            }
         }
 
         private void OnEditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
         {
             // keep existing behavior
             e.Control.BackColor = Color.White;
+            DetachEditingTextBoxHandlers();
 
             // ReserveGridView merged: textbox init + EditingControlRule
             var rowIndex = CurrentCell != null ? CurrentCell.RowIndex : -1;
@@ -1018,6 +1173,24 @@ namespace coms.COMSK.ui.common
             {
                 try
                 {
+                    var cell = this[colIndex, rowIndex];
+                    if (cell != null && (cell.Value == null || cell.Value == DBNull.Value))
+                    {
+                        tb.Text = string.Empty;
+                    }
+
+                    if (IsNumericColumn(colIndex))
+                    {
+                        tb.ImeMode = ImeMode.Disable;
+                        tb.KeyPress += OnEditingTextBoxKeyPressNumericOnly;
+                        tb.TextChanged += OnEditingTextBoxTextChangedNumericOnly;
+                        _activeEditingTextBox = tb;
+                    }
+                    else
+                    {
+                        tb.ImeMode = ImeMode.NoControl;
+                    }
+
                     tb.SelectionStart = 0;
                     tb.SelectionLength = tb.TextLength;
                 }
@@ -1322,7 +1495,7 @@ namespace coms.COMSK.ui.common
                             break;
                         }
                     }
-
+                    // Border bold for seperate columns
                     if (bandHasRightBorder)
                     {
                         using (var pen = new Pen(Color.Black, 2))
@@ -1990,6 +2163,238 @@ namespace coms.COMSK.ui.common
                 }
             }
             catch { }
+        }
+        /// <summary>
+        /// 結合セルの情報やグループ情報を取得します。
+        /// Formやユーザーコントロールから、セルの結合状態を知りたいときに使用します。
+        /// </summary>
+        /// <param name="rowIndex"></param>
+        /// <param name="columnIndex"></param>
+        /// <param name="region"></param>
+        /// <returns></returns>
+        public bool TryGetMergeRegion(int rowIndex, int columnIndex, out MergeRegion region)
+        {
+            region = null;
+            return this._mergeStore.TryGetRegionFromCell(rowIndex, columnIndex, out region) == true;
+        }
+
+        private void OnDataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            try
+            {
+                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+                {
+                    var cell = this[e.ColumnIndex, e.RowIndex];
+                    if (cell != null)
+                    {
+                        string editedText = null;
+                        try { editedText = Convert.ToString(cell.EditedFormattedValue); }
+                        catch { }
+
+                        if (string.IsNullOrWhiteSpace(editedText))
+                        {
+                            e.ThrowException = false;
+                            e.Cancel = false;
+                            return;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            e.ThrowException = false;
+        }
+
+        private bool IsNumericColumn(int columnIndex)
+        {
+            if (columnIndex < 0 || columnIndex >= Columns.Count) return false;
+
+            bool ret = IsYearColumn(columnIndex);
+            if (ret) return ret;
+
+            var col = Columns[columnIndex];
+            if (col == null || !col.Visible) return false;
+            try
+            {
+                string colName = col.Name ?? string.Empty;
+                if (!string.IsNullOrEmpty(colName) && NumericColumns != null &&
+                    NumericColumns.Contains(colName))
+                {
+                    return true;
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
+        private bool IsYearColumn(int columnIndex)
+        {
+            if (columnIndex < 0 || columnIndex >= Columns.Count) return false;
+
+            var col = Columns[columnIndex];
+            if (col == null || !col.Visible) return false;
+
+            try
+            {
+                // 1) safest: use Tag because yearly columns are created with TAG_DRAGGABLE_CELL
+                if (col.Tag != null)
+                {
+                    string tagText = Convert.ToString(col.Tag);
+                    if (!string.IsNullOrWhiteSpace(tagText) &&
+                        string.Equals(tagText, Convert.ToString(coms.COMSK.common.COMSKCommon.TAG_DRAGGABLE_CELL), StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch { }
+
+            try
+            {
+                // 2) fallback: column name contains bgcolValue
+                string colName = col.Name ?? string.Empty;
+                if (!string.IsNullOrEmpty(colName) &&
+                    colName.IndexOf("bgcolValue", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+            catch { }
+
+            try
+            {
+                // 3) keep old prefix-based fallback too
+                string colName = col.Name ?? string.Empty;
+                var prefixes = YearColumnNamePrefixes ?? new string[0];
+                foreach (var prefix in prefixes)
+                {
+                    if (string.IsNullOrWhiteSpace(prefix)) continue;
+                    if (colName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
+        private void DetachEditingTextBoxHandlers()
+        {
+            if (_activeEditingTextBox == null) return;
+
+            try
+            {
+                _activeEditingTextBox.KeyPress -= OnEditingTextBoxKeyPressNumericOnly;
+                _activeEditingTextBox.TextChanged -= OnEditingTextBoxTextChangedNumericOnly;
+                _activeEditingTextBox.ImeMode = ImeMode.NoControl;
+            }
+            catch { }
+
+            _activeEditingTextBox = null;
+        }
+
+        private void OnEditingTextBoxKeyPressNumericOnly(object sender, KeyPressEventArgs e)
+        {
+            if (e == null) return;
+
+            // Backspace / Delete / Ctrl combinations etc.
+            if (char.IsControl(e.KeyChar)) return;
+
+            // numeric 0-9
+            if (char.IsDigit(e.KeyChar)) return;
+
+            // optional minus at first position only
+            var tb = sender as TextBox;
+            if (tb != null && e.KeyChar == '-')
+            {
+                try
+                {
+                    string current = tb.Text ?? string.Empty;
+                    int selStart = tb.SelectionStart;
+                    int selLength = tb.SelectionLength;
+                    string next = current.Remove(selStart, selLength).Insert(selStart, "-");
+
+                    if (next == "-" || (next.StartsWith("-") && next.IndexOf('-', 1) < 0))
+                        return;
+                }
+                catch { }
+            }
+
+            e.Handled = true;
+        }
+
+        private void OnEditingTextBoxTextChangedNumericOnly(object sender, EventArgs e)
+        {
+            if (_suppressNumericTextChange) return;
+
+            var tb = sender as TextBox;
+            if (tb == null) return;
+
+            string text = tb.Text ?? string.Empty;
+            if (text.Length == 0) return;
+
+            string sanitized = SanitizeNumericText(text);
+            if (string.Equals(text, sanitized, StringComparison.Ordinal)) return;
+
+            int selectionStart = tb.SelectionStart;
+            int oldLength = text.Length;
+            int newLength = sanitized.Length;
+
+            _suppressNumericTextChange = true;
+            try
+            {
+                tb.Text = sanitized;
+
+                int newSelectionStart = selectionStart - (oldLength - newLength);
+                if (newSelectionStart < 0) newSelectionStart = 0;
+                if (newSelectionStart > tb.TextLength) newSelectionStart = tb.TextLength;
+
+                tb.SelectionStart = newSelectionStart;
+                tb.SelectionLength = 0;
+            }
+            finally
+            {
+                _suppressNumericTextChange = false;
+            }
+        }
+
+        private static string SanitizeNumericText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+
+            var chars = new List<char>(text.Length);
+            bool hasMinus = false;
+
+            for (int i = 0; i < text.Length; i++)
+            {
+                char ch = text[i];
+
+                // allow ASCII digits only
+                if (ch >= '0' && ch <= '9')
+                {
+                    chars.Add(ch);
+                    continue;
+                }
+
+                // allow ASCII minus only at first position and only once
+                if (ch == '-' && !hasMinus && chars.Count == 0)
+                {
+                    chars.Add(ch);
+                    hasMinus = true;
+                    continue;
+                }
+
+                // block everything else:
+                // - fullwidth digits: ０１２３...
+                // - fullwidth minus: －
+                // - commas, dots, spaces, letters, symbols, etc.
+            }
+
+            if (chars.Count == 1 && chars[0] == '-')
+                return "-";
+
+            return new string(chars.ToArray());
         }
     }
 }
