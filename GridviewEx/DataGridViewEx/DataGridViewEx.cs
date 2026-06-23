@@ -2550,6 +2550,27 @@ namespace coms.COMMON.ui
                         return true; // グリッドのエンターキイベント無視する
                     }
                 }
+
+                if (DisableEnterMoveNextCell)
+                {
+                    try
+                    {
+                        if (this.IsCurrentCellInEditMode)
+                        {
+                            this.EndEdit();
+                        }
+                        else
+                        {
+                            this.CommitEdit(DataGridViewDataErrorContexts.Commit);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine("DisableEnterMoveNextCell: " + ex.Message);
+                    }
+
+                    return true; // ignore default Enter navigation to next row
+                }
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
