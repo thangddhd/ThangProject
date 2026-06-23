@@ -44,6 +44,11 @@ namespace coms.COMMON.ui
         [DefaultValue(false)]
         public bool KeepFilterAndSort { get; set; } = true;
 
+        [Category("Behavior")]
+        [Description("When true, pressing Enter while editing commits the current cell and keeps focus from moving to the next row.")]
+        [DefaultValue(false)]
+        public bool DisableEnterMoveNextCell { get; set; } = false;
+
         public event Action<DataGridViewRow> ApplyRowStyle;
         public event EventHandler<CellMergeEventArgs> CellMerge;
         public event EventHandler<ButtonIconNeededEventArgs> ButtonIconNeeded;
