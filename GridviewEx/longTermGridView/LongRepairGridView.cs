@@ -762,13 +762,32 @@ namespace coms.COMSK.ui.common
                                 break;
                         }
 
-                        TextRenderer.DrawText(
-                            e.Graphics,
-                            displayArgs.DisplayText,
-                            e.CellStyle.Font,
-                            e.CellBounds,
-                            textColor,
-                            flags);
+                        Rectangle displayRect = GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, false);
+                        if (displayRect.Width > 0 && displayRect.Height > 0)
+                        {
+                            Region oldClip = e.Graphics.Clip;
+                            try
+                            {
+                                Rectangle clipRect = Rectangle.Intersect(displayRect, e.ClipBounds);
+                                if (!clipRect.IsEmpty)
+                                {
+                                    e.Graphics.SetClip(clipRect);
+
+                                    TextRenderer.DrawText(
+                                        e.Graphics,
+                                        displayArgs.DisplayText,
+                                        e.CellStyle.Font ?? Font,
+                                        displayRect,
+                                        textColor,
+                                        flags);
+                                }
+                            }
+                            finally
+                            {
+                                e.Graphics.Clip = oldClip;
+                                if (oldClip != null) oldClip.Dispose();
+                            }
+                        }
 
                         if (needsRightBorder) PaintRightBorderIfNeeded(e);
 
