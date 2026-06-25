@@ -84,6 +84,7 @@ namespace coms.COMSK.ui.common
 
         private CellKey _hoverButtonCell = new CellKey(-1, -1);
         private CellKey _pressedButtonCell = new CellKey(-1, -1);
+        private bool _suppressAutoBeginEdit;
 
         /// <summary>
         /// Optional: business-rule filter for whether a cell is draggable/selectable.
@@ -173,6 +174,7 @@ namespace coms.COMSK.ui.common
             MouseDown += OnMouseDownHeaderBandDrag;
             MouseMove += OnMouseMoveHeaderBandDrag;
             MouseUp += OnMouseUpHeaderBandDrag;
+            CurrentCellChanged += OnCurrentCellChanged;
         }
 
         public BindingSource GetBindingSource() => _bs;
@@ -1072,8 +1074,36 @@ namespace coms.COMSK.ui.common
 
         private void OnCellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
         {
-            if (e.RowIndex < 0) return;
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
             SetHighlightedRow(e.RowIndex);
+
+            // single-click edit for non-yearly editable cells
+            if (e.Button != MouseButtons.Left) return;
+            if (IsCurrentCellInEditMode) return;
+
+            if (CanSingleClickEditCell(e.RowIndex, e.ColumnIndex))
+            {
+                try
+                {
+                    _suppressAutoBeginEdit = true;
+
+                    if (CurrentCell == null ||
+                        CurrentCell.RowIndex != e.RowIndex ||
+                        CurrentCell.ColumnIndex != e.ColumnIndex)
+                    {
+                        CurrentCell = this[e.ColumnIndex, e.RowIndex];
+                    }
+
+                    _editPermit.Add(new CellKey(e.RowIndex, e.ColumnIndex));
+                }
+                finally
+                {
+                    _suppressAutoBeginEdit = false;
+                }
+
+                BeginEdit(true);
+            }
         }
 
         private void OnCellDoubleClick(object sender, DataGridViewCellEventArgs e)
@@ -1083,16 +1113,16 @@ namespace coms.COMSK.ui.common
             DataGridViewColumn col = Columns[e.ColumnIndex];
             if (col == null) return;
 
-            // merged => no edit (existing behavior)
+            // merged => no edit
             CellKey owner;
             if (MergingEnabled && _mergeStore.TryGetOwner(e.RowIndex, e.ColumnIndex, out owner))
                 return;
 
-            // NEW: readonly comes from CellReadOnlyNeeded + DataGridView flags (not drag rule)
             if (IsCellReadOnlyByRule(e.RowIndex, e.ColumnIndex))
                 return;
 
-            // keep the "permit on double click" behavior (but no longer tied to drag-allowed)
+            // keep existing behavior for yearly cells:
+            // yearly cell still requires explicit double click
             _editPermit.Add(new CellKey(e.RowIndex, e.ColumnIndex));
 
             CurrentCell = this[e.ColumnIndex, e.RowIndex];
@@ -1133,10 +1163,10 @@ namespace coms.COMSK.ui.common
             // IMPORTANT CHANGE:
             // Remove "readonly/edit permit" behavior that depended on IsDragAllowedAt.
             // Editing permission is now independent from dragging.
-            if (!_editPermit.Contains(new CellKey(e.RowIndex, e.ColumnIndex)))
+            bool requiresExplicitPermit = IsYearColumn(e.ColumnIndex);
+            // yearly cells keep old production behavior: explicit permit only
+            if (requiresExplicitPermit && !_editPermit.Contains(new CellKey(e.RowIndex, e.ColumnIndex)))
             {
-                // This keeps your old UX: user must double-click to edit.
-                // If you want single-click edit allowed, remove this block.
                 e.Cancel = true;
                 return;
             }
@@ -2261,7 +2291,7 @@ namespace coms.COMSK.ui.common
                 {
                     string tagText = Convert.ToString(col.Tag);
                     if (!string.IsNullOrWhiteSpace(tagText) &&
-                        string.Equals(tagText, Convert.ToString("LongtermRepairPlan_DraggableCell"), StringComparison.Ordinal))
+                        string.Equals(tagText, Convert.ToString(""), StringComparison.Ordinal))
                     {
                         return true;
                     }
@@ -2414,6 +2444,61 @@ namespace coms.COMSK.ui.common
                 return "-";
 
             return new string(chars.ToArray());
+        }
+
+        private bool CanSingleClickEditCell(int rowIndex, int columnIndex)
+        {
+            if (rowIndex < 0 || columnIndex < 0) return false;
+            if (rowIndex >= RowCount || columnIndex >= ColumnCount) return false;
+
+            // merged => no direct edit
+            CellKey owner;
+            if (MergingEnabled && _mergeStore.TryGetOwner(rowIndex, columnIndex, out owner))
+                return false;
+
+            if (IsCellReadOnlyByRule(rowIndex, columnIndex))
+                return false;
+
+            // only NON-yearly cells can single-click edit
+            return !IsYearColumn(columnIndex);
+        }
+
+        private void TryBeginEditForCurrentCell()
+        {
+            if (_suppressAutoBeginEdit) return;
+            if (IsCurrentCellInEditMode) return;
+            if (CurrentCell == null) return;
+
+            int rowIndex = CurrentCell.RowIndex;
+            int columnIndex = CurrentCell.ColumnIndex;
+
+            if (!CanSingleClickEditCell(rowIndex, columnIndex)) return;
+
+            try
+            {
+                _editPermit.Add(new CellKey(rowIndex, columnIndex));
+                BeginEdit(true);
+            }
+            catch
+            {
+                _editPermit.Remove(new CellKey(rowIndex, columnIndex));
+            }
+        }
+
+        private void UpdateHighlightedRowFromCurrentCell()
+        {
+            if (CurrentCell == null) return;
+            if (CurrentCell.RowIndex < 0) return;
+
+            SetHighlightedRow(CurrentCell.RowIndex);
+        }
+
+        private void OnCurrentCellChanged(object sender, EventArgs e)
+        {
+            UpdateHighlightedRowFromCurrentCell();
+
+            // only auto-edit when focus lands on editable NON-yearly cell
+            TryBeginEditForCurrentCell();
         }
     }
 }
