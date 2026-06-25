@@ -13,6 +13,7 @@
         {
             AllowUserToAddRows = false;
             AllowUserToDeleteRows = false;
+            AllowUserToResizeColumns = false;
 
             ColumnHeadersVisible = false;
             RowHeadersVisible = false;
