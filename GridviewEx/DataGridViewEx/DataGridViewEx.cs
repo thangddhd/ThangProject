@@ -49,6 +49,11 @@ namespace coms.COMMON.ui
         [DefaultValue(false)]
         public bool DisableEnterMoveNextCell { get; set; } = false;
 
+        [Category("Behavior")]
+        [Description("When true, dragging a column header outside the grid hides that column.")]
+        [DefaultValue(false)]
+        public bool AllowHideColumnByDragOutside { get; set; } = false;
+
         public event Action<DataGridViewRow> ApplyRowStyle;
         public event EventHandler<CellMergeEventArgs> CellMerge;
         public event EventHandler<ButtonIconNeededEventArgs> ButtonIconNeeded;
@@ -144,6 +149,7 @@ namespace coms.COMMON.ui
         public bool DisabledFilterAll { get; set; } = false;
         private bool _suppressSortOnce = false;
         private bool _isResizingColumn = false;
+        private string _dragColumnName = null;
         public HashSet<string> IgnoreAutoFormatColumns { get; set; } = new HashSet<string>();
         public HashSet<string> SortAsNumberColumns { get; set; } = new HashSet<string>();
         public DataGridViewEx()
@@ -160,6 +166,7 @@ namespace coms.COMMON.ui
             this.AutoGenerateColumns = false;
             this.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             this.ColumnHeadersHeight = 25;
+            this.AllowUserToResizeRows = false;
 
             this.DragEnter += (s, e) => e.Effect = DragDropEffects.Move;
             this.DragDrop += DataGridViewEx_DragDrop;
@@ -2618,7 +2625,7 @@ namespace coms.COMMON.ui
                 this.Cursor = Cursors.Default;
                 if (this.Columns[e.ColumnIndex] is DataGridViewButtonColumn btn)
                 {
-                    this.Cursor = Cursors.Hand;
+                    //this.Cursor = Cursors.Hand;
                     if (_hoverRowIndex != e.RowIndex || _hoverColumnIndex != e.ColumnIndex)
                     {
                         _hoverRowIndex = e.RowIndex;
@@ -3091,8 +3098,34 @@ namespace coms.COMMON.ui
                                 System.Diagnostics.Debug.WriteLine("OnMouseMove: " + ex.Message);
                             }
 
+                            _dragColumnName = col.Name;
                             _draggingStarted = true;
-                            this.DoDragDrop(data, DragDropEffects.Move);
+
+                            var effect = this.DoDragDrop(data, DragDropEffects.Move);
+
+                            if (AllowHideColumnByDragOutside &&
+                                effect == DragDropEffects.None &&
+                                !string.IsNullOrEmpty(_dragColumnName) &&
+                                this.Columns.Contains(_dragColumnName))
+                            {
+                                try
+                                {
+                                    var draggedCol = this.Columns[_dragColumnName];
+                                    if (draggedCol != null && draggedCol.Visible)
+                                    {
+                                        draggedCol.Visible = false;
+                                        UpdateVisibleColumnOrder();
+                                        ReapplyColumnDisplayOrder();
+                                        this.Refresh();
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine("Hide column by drag outside: " + ex.Message);
+                                }
+                            }
+
+                            _dragColumnName = null;
                         }
                     }
                 }
@@ -3125,6 +3158,7 @@ namespace coms.COMMON.ui
 
             _draggingStarted = false;
             _isResizingColumn = false;  // ✅ Reset resize flag
+            _dragColumnName = null;
         }
 
         private void DrawFilterIcon(
