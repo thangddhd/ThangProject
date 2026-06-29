@@ -516,6 +516,13 @@ namespace coms.COMMON.ui
         private void DataGridViewEx_DragOver(object sender, DragEventArgs e)
         {
             Point clientPoint = this.PointToClient(new Point(e.X, e.Y));
+            if (!this.ClientRectangle.Contains(clientPoint))
+            {
+                _insertionMarkIndex = -1;
+                _insertionMarkX = -1;
+                this.Invalidate();
+                return;
+            }
             var hit = this.HitTest(clientPoint.X, clientPoint.Y);
 
             if (hit.Type == DataGridViewHitTestType.ColumnHeader && hit.ColumnIndex >= 0)
@@ -3103,6 +3110,11 @@ namespace coms.COMMON.ui
 
                             var effect = this.DoDragDrop(data, DragDropEffects.Move);
 
+                            // ✅ always clear insertion marker after drag operation ends
+                            _insertionMarkIndex = -1;
+                            _insertionMarkX = -1;
+                            this.Invalidate(new Rectangle(0, 0, this.Width, this.ColumnHeadersHeight));
+
                             if (AllowHideColumnByDragOutside &&
                                 effect == DragDropEffects.None &&
                                 !string.IsNullOrEmpty(_dragColumnName) &&
@@ -3159,6 +3171,13 @@ namespace coms.COMMON.ui
             _draggingStarted = false;
             _isResizingColumn = false;  // ✅ Reset resize flag
             _dragColumnName = null;
+
+            if (_insertionMarkIndex != -1 || _insertionMarkX != -1)
+            {
+                _insertionMarkIndex = -1;
+                _insertionMarkX = -1;
+                this.Invalidate(new Rectangle(0, 0, this.Width, this.ColumnHeadersHeight));
+            }
         }
 
         private void DrawFilterIcon(
