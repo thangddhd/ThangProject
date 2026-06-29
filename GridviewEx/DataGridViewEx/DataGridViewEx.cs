@@ -3942,5 +3942,65 @@ namespace coms.COMMON.ui
 
             return true;
         }
+
+        private bool CanBeginTextBoxEdit(DataGridViewCell cell)
+        {
+            if (cell == null) return false;
+            if (cell.RowIndex < 0 || cell.ColumnIndex < 0) return false;
+
+            var row = this.Rows[cell.RowIndex];
+            var col = this.Columns[cell.ColumnIndex];
+
+            if (this.ReadOnly || row.ReadOnly || col.ReadOnly || cell.ReadOnly)
+                return false;
+
+            if (!(cell is DataGridViewTextBoxCell))
+                return false;
+
+            return true;
+        }
+
+        private void BeginEditCurrentTextBoxCell()
+        {
+            try
+            {
+                var cell = this.CurrentCell;
+                if (!CanBeginTextBoxEdit(cell))
+                    return;
+
+                if (!this.Focused)
+                    this.Focus();
+
+                if (!this.IsCurrentCellInEditMode)
+                    this.BeginEdit(true);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("BeginEditCurrentTextBoxCell: " + ex.Message);
+            }
+        }
+
+        protected override void OnCellClick(DataGridViewCellEventArgs e)
+        {
+            base.OnCellClick(e);
+
+            if (e.RowIndex < 0 || e.ColumnIndex < 0)
+                return;
+
+            if (this.Columns[e.ColumnIndex] is DataGridViewTextBoxColumn)
+            {
+                BeginEditCurrentTextBoxCell();
+            }
+        }
+
+        protected override void OnCurrentCellChanged(EventArgs e)
+        {
+            base.OnCurrentCellChanged(e);
+
+            if (this.IsCurrentCellInEditMode)
+                return;
+
+            BeginEditCurrentTextBoxCell();
+        }
     }
 }
