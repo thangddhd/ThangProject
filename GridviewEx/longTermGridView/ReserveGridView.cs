@@ -402,6 +402,88 @@
             _suppressNextBeginEdit = false;
             base.OnLeave(e);
         }
+
+        protected override bool ProcessDialogKey(Keys keyData)
+        {
+            if ((keyData & Keys.KeyCode) == Keys.Enter)
+            {
+                return HandleEnterKey();
+            }
+
+            return base.ProcessDialogKey(keyData);
+        }
+
+        protected override bool ProcessDataGridViewKey(KeyEventArgs e)
+        {
+            if (e != null && e.KeyCode == Keys.Enter)
+            {
+                return HandleEnterKey();
+            }
+
+            return base.ProcessDataGridViewKey(e);
+        }
+
+        private bool HandleEnterKey()
+        {
+            try
+            {
+                if (CurrentCell == null)
+                    return true;
+
+                if (IsCurrentCellInEditMode)
+                {
+                    _suppressNextBeginEdit = true;
+
+                    try
+                    {
+                        EndEdit(DataGridViewDataErrorContexts.Commit);
+                    }
+                    catch { }
+
+                    try
+                    {
+                        CommitEdit(DataGridViewDataErrorContexts.Commit);
+                    }
+                    catch { }
+
+                    try
+                    {
+                        if (BindingContext != null && DataSource != null)
+                        {
+                            var cm = BindingContext[DataSource, DataMember] as CurrencyManager;
+                            if (cm != null)
+                                cm.EndCurrentEdit();
+                        }
+                    }
+                    catch { }
+
+                    try
+                    {
+                        InvalidateCell(CurrentCell.ColumnIndex, CurrentCell.RowIndex);
+                    }
+                    catch { }
+
+                    BeginInvoke(new Action(() =>
+                    {
+                        _suppressNextBeginEdit = false;
+
+                        try
+                        {
+                            if (CurrentCell != null)
+                                InvalidateCell(CurrentCell.ColumnIndex, CurrentCell.RowIndex);
+                        }
+                        catch { }
+                    }));
+                }
+
+                return true;
+            }
+            catch
+            {
+                _suppressNextBeginEdit = false;
+                return true;
+            }
+        }
     }
 
     public enum ReserveGridViewMode
