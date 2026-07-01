@@ -614,12 +614,7 @@ namespace coms.COMSK.ui.common
                 _lastCurrentCell.Row == e.RowIndex &&
                 _lastCurrentCell.Col == e.ColumnIndex;
 
-            if (isSelectedByDrag)
-            {
-                e.CellStyle.BackColor = Blend(Color.Red, Color.Black, 0.1f);
-            }
-
-            if (isCurrentCellByKeyboard)
+            if (isSelectedByDrag || isCurrentCellByKeyboard)
             {
                 e.CellStyle.BackColor = Blend(Color.Lavender, Color.Black, 0.1f);
             }
