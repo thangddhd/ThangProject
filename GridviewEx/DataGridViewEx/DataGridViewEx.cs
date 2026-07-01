@@ -4118,5 +4118,27 @@ namespace coms.COMMON.ui
 
             BeginEditCurrentTextBoxCell();
         }
+
+        protected override bool ProcessDialogKey(Keys keyData)
+        {
+            if ((keyData & Keys.KeyCode) == Keys.Delete)
+            {
+                return true;
+            }
+
+            return base.ProcessDialogKey(keyData);
+        }
+
+        protected override bool ProcessDataGridViewKey(KeyEventArgs e)
+        {
+            if (e != null && e.KeyCode == Keys.Delete)
+            {
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return true;
+            }
+
+            return base.ProcessDataGridViewKey(e);
+        }
     }
 }
