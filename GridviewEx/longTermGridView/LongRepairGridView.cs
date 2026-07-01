@@ -611,11 +611,15 @@ namespace coms.COMSK.ui.common
             // 5. 🔥 FINAL OVERRIDE: selection MUST WIN
             // =========================
             bool isCurrentCellByKeyboard =
-                CurrentCell != null &&
-                CurrentCell.RowIndex == e.RowIndex &&
-                CurrentCell.ColumnIndex == e.ColumnIndex;
+                _lastCurrentCell.Row == e.RowIndex &&
+                _lastCurrentCell.Col == e.ColumnIndex;
 
-            if (isSelectedByDrag || isCurrentCellByKeyboard)
+            if (isSelectedByDrag)
+            {
+                e.CellStyle.BackColor = Blend(Color.Red, Color.Black, 0.1f);
+            }
+
+            if (isCurrentCellByKeyboard)
             {
                 e.CellStyle.BackColor = Blend(Color.Lavender, Color.Black, 0.1f);
             }
@@ -2514,21 +2518,28 @@ namespace coms.COMSK.ui.common
                 _lastCurrentCell = new CellKey(-1, -1);
             }
 
-            // repaint old current cell
-            if (oldCell.Row >= 0 && oldCell.Col >= 0 &&
-                oldCell.Row < Rows.Count && oldCell.Col < Columns.Count)
+            // repaint old row + old cell
+            if (oldCell.Row >= 0 && oldCell.Row < Rows.Count)
             {
-                InvalidateCell(oldCell.Col, oldCell.Row);
+                InvalidateRow(oldCell.Row);
+
+                if (oldCell.Col >= 0 && oldCell.Col < Columns.Count)
+                    InvalidateCell(oldCell.Col, oldCell.Row);
             }
 
-            // repaint new current cell
-            if (_lastCurrentCell.Row >= 0 && _lastCurrentCell.Col >= 0 &&
-                _lastCurrentCell.Row < Rows.Count && _lastCurrentCell.Col < Columns.Count)
+            // repaint new row + new cell
+            if (_lastCurrentCell.Row >= 0 && _lastCurrentCell.Row < Rows.Count)
             {
-                InvalidateCell(_lastCurrentCell.Col, _lastCurrentCell.Row);
+                InvalidateRow(_lastCurrentCell.Row);
+
+                if (_lastCurrentCell.Col >= 0 && _lastCurrentCell.Col < Columns.Count)
+                    InvalidateCell(_lastCurrentCell.Col, _lastCurrentCell.Row);
             }
 
             UpdateHighlightedRowFromCurrentCell();
+
+            // force actual redraw now
+            Update();
 
             // only auto-edit when focus lands on editable NON-yearly cell
             TryBeginEditForCurrentCell();
