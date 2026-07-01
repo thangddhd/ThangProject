@@ -2559,6 +2559,83 @@ namespace coms.COMMON.ui
         /// <returns></returns>
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
+            Keys keyCode = keyData & Keys.KeyCode;
+
+            if (keyCode == Keys.Left || keyCode == Keys.Right || keyCode == Keys.Up || keyCode == Keys.Down)
+            {
+                try
+                {
+                    if (this.IsDisposed || this.Disposing)
+                        return base.ProcessCmdKey(ref msg, keyData);
+
+                    if (this.CurrentCell == null)
+                        return base.ProcessCmdKey(ref msg, keyData);
+
+                    int row = this.CurrentCell.RowIndex;
+                    int col = this.CurrentCell.ColumnIndex;
+
+                    if (row < 0 || col < 0)
+                        return base.ProcessCmdKey(ref msg, keyData);
+
+                    // 1. commit current editing value first
+                    if (this.IsCurrentCellInEditMode)
+                    {
+                        try
+                        {
+                            this.EndEdit();
+                            this.CommitEdit(DataGridViewDataErrorContexts.Commit);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine("ProcessCmdKey EndEdit/CommitEdit: " + ex.Message);
+                        }
+                    }
+
+                    // 2. calculate next target cell
+                    int newRow = row;
+                    int newCol = col;
+
+                    switch (keyCode)
+                    {
+                        case Keys.Left:
+                            newCol = Math.Max(0, col - 1);
+                            break;
+
+                        case Keys.Right:
+                            newCol = Math.Min(this.Columns.Count - 1, col + 1);
+                            break;
+
+                        case Keys.Up:
+                            newRow = Math.Max(0, row - 1);
+                            break;
+
+                        case Keys.Down:
+                            newRow = Math.Min(this.Rows.Count - 1, row + 1);
+                            break;
+                    }
+
+                    // skip invalid / invisible cells if needed
+                    if (newRow >= 0 && newRow < this.Rows.Count &&
+                        newCol >= 0 && newCol < this.Columns.Count)
+                    {
+                        var nextCell = this.Rows[newRow].Cells[newCol];
+
+                        if (nextCell.Visible)
+                        {
+                            this.CurrentCell = nextCell;
+                            return true; // handled in one key press
+                        }
+                    }
+
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("ProcessCmdKey arrow move: " + ex.Message);
+                    return true;
+                }
+            }
+
             if (keyData == Keys.Enter)
             {
                 if (this.EditingControl is DataGridViewTextBoxEditingControl tb)
@@ -3964,12 +4041,30 @@ namespace coms.COMMON.ui
         {
             try
             {
+                if (this.IsDisposed || this.Disposing)
+                    return;
+
+                if (!this.IsHandleCreated)
+                    return;
+
+                if (this.Columns == null || this.Rows == null)
+                    return;
+
                 var cell = this.CurrentCell;
+                if (cell == null)
+                    return;
+
+                if (cell.RowIndex < 0 || cell.ColumnIndex < 0)
+                    return;
+
+                if (cell.RowIndex >= this.Rows.Count || cell.ColumnIndex >= this.Columns.Count)
+                    return;
+
                 if (!CanBeginTextBoxEdit(cell))
                     return;
 
-                if (!this.Focused)
-                    this.Focus();
+                if (!this.ContainsFocus)
+                    return;
 
                 if (!this.IsCurrentCellInEditMode)
                     this.BeginEdit(true);
@@ -3987,6 +4082,9 @@ namespace coms.COMMON.ui
             if (e.RowIndex < 0 || e.ColumnIndex < 0)
                 return;
 
+            if (this.IsDisposed || this.Disposing)
+                return;
+
             if (this.Columns[e.ColumnIndex] is DataGridViewTextBoxColumn)
             {
                 BeginEditCurrentTextBoxCell();
@@ -3996,6 +4094,24 @@ namespace coms.COMMON.ui
         protected override void OnCurrentCellChanged(EventArgs e)
         {
             base.OnCurrentCellChanged(e);
+
+            if (this.IsDisposed || this.Disposing)
+                return;
+
+            if (!this.IsHandleCreated)
+                return;
+
+            if (!this.ContainsFocus)
+                return;
+
+            if (this.CurrentCell == null)
+                return;
+
+            if (this.CurrentCell.RowIndex < 0 || this.CurrentCell.ColumnIndex < 0)
+                return;
+
+            if (this.CurrentCell.RowIndex >= this.Rows.Count || this.CurrentCell.ColumnIndex >= this.Columns.Count)
+                return;
 
             if (this.IsCurrentCellInEditMode)
                 return;
