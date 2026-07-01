@@ -2291,7 +2291,7 @@ namespace coms.COMSK.ui.common
                 {
                     string tagText = Convert.ToString(col.Tag);
                     if (!string.IsNullOrWhiteSpace(tagText) &&
-                        string.Equals(tagText, Convert.ToString(""), StringComparison.Ordinal))
+                        string.Equals(tagText, Convert.ToString("aaa"), StringComparison.Ordinal))
                     {
                         return true;
                     }
@@ -2499,6 +2499,63 @@ namespace coms.COMSK.ui.common
 
             // only auto-edit when focus lands on editable NON-yearly cell
             TryBeginEditForCurrentCell();
+        }
+
+        protected override bool ProcessDialogKey(Keys keyData)
+        {
+            if ((keyData & Keys.KeyCode) == Keys.Enter)
+            {
+                return HandleEnterKey();
+            }
+
+            return base.ProcessDialogKey(keyData);
+        }
+
+        protected override bool ProcessDataGridViewKey(KeyEventArgs e)
+        {
+            if (e != null && e.KeyCode == Keys.Enter)
+            {
+                return HandleEnterKey();
+            }
+
+            return base.ProcessDataGridViewKey(e);
+        }
+
+        private bool HandleEnterKey()
+        {
+            try
+            {
+                _suppressAutoBeginEdit = true;
+
+                if (IsCurrentCellInEditMode)
+                {
+                    try
+                    {
+                        EndEdit();
+                    }
+                    catch { }
+
+                    try
+                    {
+                        if (BindingContext != null && DataSource != null)
+                        {
+                            var cm = BindingContext[DataSource, DataMember] as CurrencyManager;
+                            if (cm != null)
+                                cm.EndCurrentEdit();
+                        }
+                    }
+                    catch { }
+                }
+
+                // keep CurrentCell as-is
+                // do not move row
+                // do not auto-reenter edit here
+                return true;
+            }
+            finally
+            {
+                _suppressAutoBeginEdit = false;
+            }
         }
     }
 }
