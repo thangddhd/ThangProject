@@ -614,7 +614,8 @@ namespace coms.COMSK.ui.common
                 _lastCurrentCell.Row == e.RowIndex &&
                 _lastCurrentCell.Col == e.ColumnIndex;
 
-            if (isCurrentCellByKeyboard)
+            // キーボードでセルを選択する場合ドラグセルハイライトは無視する
+            if (isSelectedByDrag | isCurrentCellByKeyboard)
             {
                 e.CellStyle.BackColor = Blend(Color.Lavender, Color.Black, 0.1f);
             }
