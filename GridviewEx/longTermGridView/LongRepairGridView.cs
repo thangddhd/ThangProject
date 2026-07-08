@@ -611,11 +611,12 @@ namespace coms.COMSK.ui.common
             // 5. 🔥 FINAL OVERRIDE: selection MUST WIN
             // =========================
             bool isCurrentCellByKeyboard =
-                _lastCurrentCell.Row == e.RowIndex &&
-                _lastCurrentCell.Col == e.ColumnIndex;
+                CurrentCell != null &&
+                CurrentCell.RowIndex == e.RowIndex &&
+                CurrentCell.ColumnIndex == e.ColumnIndex;
 
             // キーボードでセルを選択する場合ドラグセルハイライトは無視する
-            if (isSelectedByDrag | isCurrentCellByKeyboard)
+            if (isSelectedByDrag || isCurrentCellByKeyboard)
             {
                 e.CellStyle.BackColor = Blend(Color.Lavender, Color.Black, 0.1f);
             }
@@ -2503,6 +2504,10 @@ namespace coms.COMSK.ui.common
         {
             var oldCell = _lastCurrentCell;
 
+            bool cellActuallyChanged =
+                oldCell.Row != (CurrentCell != null ? CurrentCell.RowIndex : -1) ||
+                oldCell.Col != (CurrentCell != null ? CurrentCell.ColumnIndex : -1);
+
             if (CurrentCell != null &&
                 CurrentCell.RowIndex >= 0 &&
                 CurrentCell.ColumnIndex >= 0)
@@ -2512,6 +2517,14 @@ namespace coms.COMSK.ui.common
             else
             {
                 _lastCurrentCell = new CellKey(-1, -1);
+            }
+
+            // IMPORTANT:
+            // if current cell changed while we are NOT dragging,
+            // old drag/range highlight must be cleared.
+            if (!_dragging && cellActuallyChanged)
+            {
+                ClearDragSelectionState();
             }
 
             // repaint old row + old cell
@@ -2596,6 +2609,24 @@ namespace coms.COMSK.ui.common
             {
                 _suppressAutoBeginEdit = false;
             }
+        }
+
+        private void ClearDragSelectionState()
+        {
+            _hasDragSelection = false;
+            _hasRowRangeSelection = false;
+
+            _selDisplayColMin = -1;
+            _selDisplayColMax = -1;
+
+            _rangeAnchorRow = -1;
+            _rangeEndRow = -1;
+            _rangeColumnIndex = -1;
+            _activeMoveRow = -1;
+
+            _dragStart = new CellKey(-1, -1);
+            _dragEnd = new CellKey(-1, -1);
+            _dragMode = DragMode.None;
         }
     }
 }
