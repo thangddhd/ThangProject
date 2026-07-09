@@ -440,33 +440,39 @@ namespace coms.COMSK.ui.common
 		/// </summary>
 		public void CreateYearColumns(int accountStartPeriod, int displayStartPeriod, int count, KumiaiTermInfo[] termInfo, int oAccountStartPeriod)
 		{
+			_grid.SuspendCurrentCellChanged();
+			_grid.SuspendLayout();
+
 			try
 			{
-				// 既存築年列を削除
+				if (_grid.CurrentCell != null)
+				{
+					_grid.CurrentCell = null;
+				}
+
 				COMSKCommon.RemoveYearlyCol(_grid);
 
 				var hdLayout = BuildBandedHeaderNonYearly();
-				// re-create header layout
 				COMSKCommon.CreateYearColumns(_grid, accountStartPeriod, displayStartPeriod, count, termInfo, true, ref hdLayout);
 				_grid.SetHeaderLayout(hdLayout);
-
-				//  create columns (not use hdLayout)
 				COMSKCommon.CreateYearColumns(_grid, accountStartPeriod, displayStartPeriod, count, termInfo, false, ref hdLayout);
+
 				startPeriodIndex = displayStartPeriod;
 				this.accountStartPeriodIdx = accountStartPeriod;
 				this.originalAccountStartPeriodIdx = oAccountStartPeriod;
 
-
-				// 30Th year right-border
 				var col30Th = COMSKCommon.Get30thColName(this.originalAccountStartPeriodIdx);
 				_grid.SetRightBorderColumns(new[] { col30Th, "bgcolEffectedYear" });
-
-				//  データソースリフレッシュ
-				_grid.Refresh();
 			}
 			catch (Exception ex)
 			{
 				MessageBox.Show(ex.Message + "\n\n" + ex.StackTrace, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+			}
+			finally
+			{
+				_grid.ResumeLayout();
+				_grid.ResumeCurrentCellChanged();
+				_grid.Refresh();
 			}
 		}
 

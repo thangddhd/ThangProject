@@ -119,8 +119,29 @@ namespace coms.COMSK.ui.common
         /// </summary>
         public IReadOnlyList<string> LastHiddenColumnNames => _lastHiddenColumnNames.AsReadOnly();
         private readonly HashSet<string> _rightBorderColumnNames = new HashSet<string>(StringComparer.Ordinal);
+        private CellKey _lastCurrentCell = new CellKey(-1, -1);
 
         private BindingSource _bs = new BindingSource();
+
+        private int _suspendCurrentCellChangedCount = 0;
+
+        public void SuspendCurrentCellChanged()
+        {
+            _suspendCurrentCellChangedCount++;
+        }
+
+        public void ResumeCurrentCellChanged()
+        {
+            if (_suspendCurrentCellChangedCount > 0)
+            {
+                _suspendCurrentCellChangedCount--;
+            }
+        }
+
+        private bool IsCurrentCellChangedSuspended
+        {
+            get { return _suspendCurrentCellChangedCount > 0; }
+        }
 
         public LongRepairGridView()
         {
@@ -609,7 +630,15 @@ namespace coms.COMSK.ui.common
             // =========================
             // 5. 🔥 FINAL OVERRIDE: selection MUST WIN
             // =========================
-            if (isSelectedByDrag)
+            bool isCurrentCellByKeyboard =
+                CurrentCell != null &&
+                CurrentCell.RowIndex == e.RowIndex &&
+                CurrentCell.ColumnIndex == e.ColumnIndex;
+
+            var isYearly = IsYearColumn(e.ColumnIndex);
+
+            // キーボードでセルを選択する場合ドラグセルハイライトは無視する
+            if ((isSelectedByDrag || isCurrentCellByKeyboard) && isYearly)
             {
                 e.CellStyle.BackColor = Blend(Color.Lavender, Color.Black, 0.1f);
             }
@@ -870,7 +899,7 @@ namespace coms.COMSK.ui.common
                             // ------------------------
                             // ※ Draw text after icon or at normal position if no icon
                             // ------------------------
-                            object val = this[owner.Col, owner.Row].FormattedValue;
+                            object val = this[e.ColumnIndex, e.RowIndex].FormattedValue;
                             string text = Convert.ToString(val) ?? string.Empty;
                             Region oldClip = e.Graphics.Clip;
                             try
@@ -1712,6 +1741,9 @@ namespace coms.COMSK.ui.common
             T model;
             if (!TryGetRowModel(rowIndex, out model)) return false;
 
+            // exclude readonly
+            if (IsCellReadOnlyByRule(rowIndex, colIndex)) return false;
+
             // custom business rules hook
             if (CanDragCell != null)
                 return CanDragCell(this, rowIndex, col, model);
@@ -2495,9 +2527,29 @@ namespace coms.COMSK.ui.common
 
         private void OnCurrentCellChanged(object sender, EventArgs e)
         {
-            UpdateHighlightedRowFromCurrentCell();
+            var oldCell = _lastCurrentCell;
 
-            // only auto-edit when focus lands on editable NON-yearly cell
+            bool cellActuallyChanged =
+                oldCell.Row != (CurrentCell != null ? CurrentCell.RowIndex : -1) ||
+                oldCell.Col != (CurrentCell != null ? CurrentCell.ColumnIndex : -1);
+
+            if (CurrentCell != null &&
+                CurrentCell.RowIndex >= 0 &&
+                CurrentCell.ColumnIndex >= 0)
+            {
+                _lastCurrentCell = new CellKey(CurrentCell.RowIndex, CurrentCell.ColumnIndex);
+            }
+            else
+            {
+                _lastCurrentCell = new CellKey(-1, -1);
+            }
+
+            if (!_dragging && cellActuallyChanged)
+            {
+                ClearDragSelectionState();
+            }
+
+            UpdateHighlightedRowFromCurrentCell();
             TryBeginEditForCurrentCell();
         }
 
@@ -2556,6 +2608,26 @@ namespace coms.COMSK.ui.common
             {
                 _suppressAutoBeginEdit = false;
             }
+        }
+
+        private void ClearDragSelectionState()
+        {
+            _hasDragSelection = false;
+            _hasRowRangeSelection = false;
+
+            _selDisplayColMin = -1;
+            _selDisplayColMax = -1;
+
+            _rangeAnchorRow = -1;
+            _rangeEndRow = -1;
+            _rangeColumnIndex = -1;
+            _activeMoveRow = -1;
+
+            _dragStart = new CellKey(-1, -1);
+            _dragEnd = new CellKey(-1, -1);
+            _dragMode = DragMode.None;
+
+            Invalidate();
         }
     }
 }
