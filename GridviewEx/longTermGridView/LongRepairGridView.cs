@@ -119,7 +119,6 @@ namespace coms.COMSK.ui.common
         /// </summary>
         public IReadOnlyList<string> LastHiddenColumnNames => _lastHiddenColumnNames.AsReadOnly();
         private readonly HashSet<string> _rightBorderColumnNames = new HashSet<string>(StringComparer.Ordinal);
-        private CellKey _lastCurrentCell = new CellKey(-1, -1);
 
         private BindingSource _bs = new BindingSource();
 
@@ -610,11 +609,7 @@ namespace coms.COMSK.ui.common
             // =========================
             // 5. 🔥 FINAL OVERRIDE: selection MUST WIN
             // =========================
-            bool isCurrentCellByKeyboard =
-                _lastCurrentCell.Row == e.RowIndex &&
-                _lastCurrentCell.Col == e.ColumnIndex;
-
-            if (isCurrentCellByKeyboard)
+            if (isSelectedByDrag)
             {
                 e.CellStyle.BackColor = Blend(Color.Lavender, Color.Black, 0.1f);
             }
@@ -2500,41 +2495,7 @@ namespace coms.COMSK.ui.common
 
         private void OnCurrentCellChanged(object sender, EventArgs e)
         {
-            var oldCell = _lastCurrentCell;
-
-            if (CurrentCell != null &&
-                CurrentCell.RowIndex >= 0 &&
-                CurrentCell.ColumnIndex >= 0)
-            {
-                _lastCurrentCell = new CellKey(CurrentCell.RowIndex, CurrentCell.ColumnIndex);
-            }
-            else
-            {
-                _lastCurrentCell = new CellKey(-1, -1);
-            }
-
-            // repaint old row + old cell
-            if (oldCell.Row >= 0 && oldCell.Row < Rows.Count)
-            {
-                InvalidateRow(oldCell.Row);
-
-                if (oldCell.Col >= 0 && oldCell.Col < Columns.Count)
-                    InvalidateCell(oldCell.Col, oldCell.Row);
-            }
-
-            // repaint new row + new cell
-            if (_lastCurrentCell.Row >= 0 && _lastCurrentCell.Row < Rows.Count)
-            {
-                InvalidateRow(_lastCurrentCell.Row);
-
-                if (_lastCurrentCell.Col >= 0 && _lastCurrentCell.Col < Columns.Count)
-                    InvalidateCell(_lastCurrentCell.Col, _lastCurrentCell.Row);
-            }
-
             UpdateHighlightedRowFromCurrentCell();
-
-            // force actual redraw now
-            Update();
 
             // only auto-edit when focus lands on editable NON-yearly cell
             TryBeginEditForCurrentCell();
