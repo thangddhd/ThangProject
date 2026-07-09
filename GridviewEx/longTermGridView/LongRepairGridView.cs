@@ -119,7 +119,6 @@ namespace coms.COMSK.ui.common
         /// </summary>
         public IReadOnlyList<string> LastHiddenColumnNames => _lastHiddenColumnNames.AsReadOnly();
         private readonly HashSet<string> _rightBorderColumnNames = new HashSet<string>(StringComparer.Ordinal);
-        private CellKey _lastCurrentCell = new CellKey(-1, -1);
 
         private BindingSource _bs = new BindingSource();
 
@@ -610,13 +609,7 @@ namespace coms.COMSK.ui.common
             // =========================
             // 5. 🔥 FINAL OVERRIDE: selection MUST WIN
             // =========================
-            bool isCurrentCellByKeyboard =
-                CurrentCell != null &&
-                CurrentCell.RowIndex == e.RowIndex &&
-                CurrentCell.ColumnIndex == e.ColumnIndex;
-
-            // キーボードでセルを選択する場合ドラグセルハイライトは無視する
-            if (isSelectedByDrag || isCurrentCellByKeyboard)
+            if (isSelectedByDrag)
             {
                 e.CellStyle.BackColor = Blend(Color.Lavender, Color.Black, 0.1f);
             }
@@ -2502,53 +2495,7 @@ namespace coms.COMSK.ui.common
 
         private void OnCurrentCellChanged(object sender, EventArgs e)
         {
-            var oldCell = _lastCurrentCell;
-
-            bool cellActuallyChanged =
-                oldCell.Row != (CurrentCell != null ? CurrentCell.RowIndex : -1) ||
-                oldCell.Col != (CurrentCell != null ? CurrentCell.ColumnIndex : -1);
-
-            if (CurrentCell != null &&
-                CurrentCell.RowIndex >= 0 &&
-                CurrentCell.ColumnIndex >= 0)
-            {
-                _lastCurrentCell = new CellKey(CurrentCell.RowIndex, CurrentCell.ColumnIndex);
-            }
-            else
-            {
-                _lastCurrentCell = new CellKey(-1, -1);
-            }
-
-            // IMPORTANT:
-            // if current cell changed while we are NOT dragging,
-            // old drag/range highlight must be cleared.
-            if (!_dragging && cellActuallyChanged)
-            {
-                ClearDragSelectionState();
-            }
-
-            // repaint old row + old cell
-            if (oldCell.Row >= 0 && oldCell.Row < Rows.Count)
-            {
-                InvalidateRow(oldCell.Row);
-
-                if (oldCell.Col >= 0 && oldCell.Col < Columns.Count)
-                    InvalidateCell(oldCell.Col, oldCell.Row);
-            }
-
-            // repaint new row + new cell
-            if (_lastCurrentCell.Row >= 0 && _lastCurrentCell.Row < Rows.Count)
-            {
-                InvalidateRow(_lastCurrentCell.Row);
-
-                if (_lastCurrentCell.Col >= 0 && _lastCurrentCell.Col < Columns.Count)
-                    InvalidateCell(_lastCurrentCell.Col, _lastCurrentCell.Row);
-            }
-
             UpdateHighlightedRowFromCurrentCell();
-
-            // force actual redraw now
-            Update();
 
             // only auto-edit when focus lands on editable NON-yearly cell
             TryBeginEditForCurrentCell();
@@ -2609,24 +2556,6 @@ namespace coms.COMSK.ui.common
             {
                 _suppressAutoBeginEdit = false;
             }
-        }
-
-        private void ClearDragSelectionState()
-        {
-            _hasDragSelection = false;
-            _hasRowRangeSelection = false;
-
-            _selDisplayColMin = -1;
-            _selDisplayColMax = -1;
-
-            _rangeAnchorRow = -1;
-            _rangeEndRow = -1;
-            _rangeColumnIndex = -1;
-            _activeMoveRow = -1;
-
-            _dragStart = new CellKey(-1, -1);
-            _dragEnd = new CellKey(-1, -1);
-            _dragMode = DragMode.None;
         }
     }
 }
