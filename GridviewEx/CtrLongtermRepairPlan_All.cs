@@ -156,15 +156,24 @@ namespace coms.COMSK.ui.common
 				}
 
 				//  セット
-				_bs = new BindingSource();
-				_bs.DataSource = list;
-				_grid.DataSource = _bs;
-				//BindData();
+				_grid.SuspendCurrentCellChanged();
+				try
+				{
+					_bs = new BindingSource();
+					_bs.DataSource = list;
+					_grid.DataSource = _bs;
 
-				// do merge
-				_grid.RebuildMerges();
+					// do merge
+					_grid.RebuildMerges();
 
-				this.GetMergedCells();
+					this.GetMergedCells();
+
+					_grid.ClearInitialSelectionState();
+				}
+				finally
+				{
+					_grid.ResumeCurrentCellChanged();
+				}
 			}
 		}
 
@@ -520,6 +529,23 @@ namespace coms.COMSK.ui.common
 		/// </summary>
 		public void Close()
 		{
+		}
+
+		public void ClearInitialGridSelection()
+		{
+			if (_grid == null) return;
+
+			_grid.SuspendCurrentCellChanged();
+			try
+			{
+				_grid.ClearInitialSelectionState();
+				_grid.ClearDragSelectionState();
+			}
+			finally
+			{
+				_grid.ResumeCurrentCellChanged();
+				_grid.Refresh();
+			}
 		}
 
 		#endregion ユーザーコントロール終了処理

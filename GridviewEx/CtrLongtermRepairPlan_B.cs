@@ -169,12 +169,22 @@ namespace coms.COMSK.ui.common
 				list.Add(tempCalc);
 
 				//  セット
-				_bs = new BindingSource();
-				_bs.DataSource = list;
-				_grid.DataSource = _bs;
+				_grid.SuspendCurrentCellChanged();
+				try
+				{
+					_bs = new BindingSource();
+					_bs.DataSource = list;
+					_grid.DataSource = _bs;
 
-				// do merge
-				_grid.RebuildMerges();
+					// do merge
+					_grid.RebuildMerges();
+
+					_grid.ClearInitialSelectionState();
+				}
+				finally
+				{
+					_grid.ResumeCurrentCellChanged();
+				}
 			}
 		}
 
@@ -535,6 +545,23 @@ namespace coms.COMSK.ui.common
 		public void RefreshData()
 		{
 			this._grid.Refresh();
+		}
+
+		public void ClearInitialGridSelection()
+		{
+			if (_grid == null) return;
+
+			_grid.SuspendCurrentCellChanged();
+			try
+			{
+				_grid.ClearInitialSelectionState();
+				_grid.ClearDragSelectionState();
+			}
+			finally
+			{
+				_grid.ResumeCurrentCellChanged();
+				_grid.Refresh();
+			}
 		}
 
 		#region ユーザーコントロール終了処理

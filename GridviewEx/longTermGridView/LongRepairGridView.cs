@@ -2527,6 +2527,11 @@ namespace coms.COMSK.ui.common
 
         private void OnCurrentCellChanged(object sender, EventArgs e)
         {
+            if (IsCurrentCellChangedSuspended)
+            {
+                return;
+            }
+
             var oldCell = _lastCurrentCell;
 
             bool cellActuallyChanged =
@@ -2610,7 +2615,7 @@ namespace coms.COMSK.ui.common
             }
         }
 
-        private void ClearDragSelectionState()
+        public void ClearDragSelectionState()
         {
             _hasDragSelection = false;
             _hasRowRangeSelection = false;
@@ -2628,6 +2633,50 @@ namespace coms.COMSK.ui.common
             _dragMode = DragMode.None;
 
             Invalidate();
+        }
+
+        public void ClearInitialSelectionState()
+        {
+            try
+            {
+                this.ClearSelection();
+            }
+            catch { }
+
+            try
+            {
+                this.CurrentCell = null;
+            }
+            catch { }
+
+            try
+            {
+                if (this.HighlightedRowIndex >= 0)
+                {
+                    int old = this.HighlightedRowIndex;
+                    this.HighlightedRowIndex = -1;
+
+                    if (old >= 0 && old < this.RowCount)
+                    {
+                        this.InvalidateRow(old);
+                    }
+                    else
+                    {
+                        this.Invalidate();
+                    }
+                }
+                else
+                {
+                    this.HighlightedRowIndex = -1;
+                }
+            }
+            catch { }
+
+            try
+            {
+                this.Invalidate();
+            }
+            catch { }
         }
     }
 }

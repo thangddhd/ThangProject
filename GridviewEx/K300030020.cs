@@ -1227,6 +1227,7 @@ namespace coms.COMSK.ui
 
 				if (selected == this.tabPage_All2)
 				{
+					ctrLongtermPlan_All.ClearInitialGridSelection();
 					ctrLongtermPlan_All.RefreshData();
 					if (tabChanged)
 					{
@@ -1248,6 +1249,7 @@ namespace coms.COMSK.ui
                 }
 				else if (selected == this.tabPage_TempConstruction2)
 				{
+					ctrLongtermPlan_Temp.ClearInitialGridSelection();
 					ctrLongtermPlan_Temp.RefreshData();
 					if (tabChanged)
 					{
@@ -1260,6 +1262,7 @@ namespace coms.COMSK.ui
 				}
 				else if (selected == this.tabPage_Building2)
 				{
+					ctrLongtermPlan_B.ClearInitialGridSelection();
 					ctrLongtermPlan_B.RefreshData();
 					if (tabChanged)
 					{
@@ -1272,6 +1275,7 @@ namespace coms.COMSK.ui
 				}
 				else if (selected == this.tabPage_Equipment2)
 				{
+					ctrLongtermPlan_E.ClearInitialGridSelection();
 					ctrLongtermPlan_E.RefreshData();
 					if (tabChanged)
 					{
@@ -1284,6 +1288,7 @@ namespace coms.COMSK.ui
 				}
 				else if (selected == this.tabPage_OutwardAppearance2)
 				{
+					ctrLongtermPlan_Out.ClearInitialGridSelection();
 					ctrLongtermPlan_Out.RefreshData();
 					if (tabChanged)
 					{
@@ -1296,6 +1301,7 @@ namespace coms.COMSK.ui
 				}
 				else if (selected == this.tabPage_Others2)
 				{
+					ctrLongtermPlan_Others.ClearInitialGridSelection();
 					ctrLongtermPlan_Others.RefreshData();
 					if (tabChanged)
 					{

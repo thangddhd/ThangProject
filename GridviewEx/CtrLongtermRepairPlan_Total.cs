@@ -79,16 +79,30 @@ namespace coms.COMSK.ui.common
 				{
 					data = new List<LongRepairPlanData>();
 				}
-                //_bs = new BindingSource();
-                _bs.DataSource = data;
-				_grid.DataSource = _bs;
-				_gridRight.DataSource = _bs;
-                // do merge
-                _grid.RebuildMerges();
+				//_bs = new BindingSource();
+				_grid.SuspendCurrentCellChanged();
+				_gridRight.SuspendCurrentCellChanged();
+				try
+				{
+					_bs.DataSource = data;
+					_grid.DataSource = _bs;
+					_gridRight.DataSource = _bs;
 
-                UpdateRightPanelWidth();
-                UpdateScrollBar();
-            }
+					// do merge
+					_grid.RebuildMerges();
+
+					_grid.ClearInitialSelectionState();
+					_gridRight.ClearInitialSelectionState();
+
+					UpdateRightPanelWidth();
+					UpdateScrollBar();
+				}
+				finally
+				{
+					_grid.ResumeCurrentCellChanged();
+					_gridRight.ResumeCurrentCellChanged();
+				}
+			}
 		}
 
         /// <summary>
