@@ -1107,10 +1107,46 @@ namespace coms.COMSK.ui.common
 
             SetHighlightedRow(e.RowIndex);
 
-            // single-click edit for non-yearly editable cells
             if (e.Button != MouseButtons.Left) return;
-            if (IsCurrentCellInEditMode) return;
 
+            // If currently editing and user clicked another cell,
+            // commit current edit first, then move focus to clicked cell.
+            if (IsCurrentCellInEditMode)
+            {
+                int targetRow = e.RowIndex;
+                int targetCol = e.ColumnIndex;
+
+                try
+                {
+                    EndEdit();
+                }
+                catch { }
+
+                try
+                {
+                    if (BindingContext != null && DataSource != null)
+                    {
+                        var cm = BindingContext[DataSource, DataMember] as CurrencyManager;
+                        if (cm != null)
+                            cm.EndCurrentEdit();
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    if (targetRow >= 0 && targetRow < RowCount &&
+                        targetCol >= 0 && targetCol < ColumnCount)
+                    {
+                        CurrentCell = this[targetCol, targetRow];
+                    }
+                }
+                catch { }
+
+                return;
+            }
+
+            // single-click edit for non-yearly editable cells
             if (CanSingleClickEditCell(e.RowIndex, e.ColumnIndex))
             {
                 try
@@ -2549,7 +2585,7 @@ namespace coms.COMSK.ui.common
                 _lastCurrentCell = new CellKey(-1, -1);
             }
 
-            if (!_dragging && cellActuallyChanged)
+            if (CurrentCell != null && !_dragging && cellActuallyChanged)
             {
                 ClearDragSelectionState();
             }
@@ -2575,13 +2611,70 @@ namespace coms.COMSK.ui.common
                 return HandleEnterKey();
             }
 
+            if (e != null &&
+                (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down || e.KeyCode == Keys.Left || e.KeyCode == Keys.Right))
+            {
+                int rowIndex = -1;
+                int colIndex = -1;
+
+                try
+                {
+                    if (CurrentCell != null)
+                    {
+                        rowIndex = CurrentCell.RowIndex;
+                        colIndex = CurrentCell.ColumnIndex;
+                    }
+
+                    if (IsCurrentCellInEditMode)
+                    {
+                        try
+                        {
+                            EndEdit();
+                        }
+                        catch { }
+
+                        try
+                        {
+                            if (BindingContext != null && DataSource != null)
+                            {
+                                var cm = BindingContext[DataSource, DataMember] as CurrencyManager;
+                                if (cm != null)
+                                    cm.EndCurrentEdit();
+                            }
+                        }
+                        catch { }
+
+                        try
+                        {
+                            if (CurrentCell == null &&
+                                rowIndex >= 0 && rowIndex < RowCount &&
+                                colIndex >= 0 && colIndex < ColumnCount)
+                            {
+                                CurrentCell = this[colIndex, rowIndex];
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+            }
+
             return base.ProcessDataGridViewKey(e);
         }
 
         private bool HandleEnterKey()
         {
+            int rowIndex = -1;
+            int colIndex = -1;
+
             try
             {
+                if (CurrentCell != null)
+                {
+                    rowIndex = CurrentCell.RowIndex;
+                    colIndex = CurrentCell.ColumnIndex;
+                }
+
                 _suppressAutoBeginEdit = true;
 
                 if (IsCurrentCellInEditMode)
@@ -2604,9 +2697,17 @@ namespace coms.COMSK.ui.common
                     catch { }
                 }
 
-                // keep CurrentCell as-is
-                // do not move row
-                // do not auto-reenter edit here
+                try
+                {
+                    if (CurrentCell == null &&
+                        rowIndex >= 0 && rowIndex < RowCount &&
+                        colIndex >= 0 && colIndex < ColumnCount)
+                    {
+                        CurrentCell = this[colIndex, rowIndex];
+                    }
+                }
+                catch { }
+
                 return true;
             }
             finally
